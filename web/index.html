@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lightsail Propulsion Simulator</title>
+  <meta name="description" content="Interactive simulation of laser-propelled lightsails: classical vs relativistic motion, sail properties, and uncertainty. Based on the UCSB 1-D laser propulsion model (Lubin).">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101318'/%3E%3Cpath d='M4 16 L22 9 L22 23 Z' fill='%239085e9' opacity='.55'/%3E%3Crect x='22' y='7' width='3' height='18' rx='1.5' fill='%23d95926'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>Lightsail Propulsion Simulator</h1>
+      <p>How do a sail's physical properties set its acceleration, speed and interstellar travel time? Idealized 1-D motion, classical vs relativistic.</p>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Sections">
+      <button role="tab" aria-selected="true" data-tab="sim">Simulation</button>
+      <button role="tab" aria-selected="false" data-tab="explore">Explore</button>
+      <button role="tab" aria-selected="false" data-tab="unc">Uncertainty</button>
+      <button role="tab" aria-selected="false" data-tab="model">Model &amp; assumptions</button>
+    </nav>
+    <button id="theme" class="ghost" type="button" aria-label="Toggle light or dark theme">◐ Theme</button>
+  </header>
+
+  <div class="layout">
+    <aside class="controls" aria-label="Parameters">
+      <div class="ctl-head">
+        <label class="preset">Preset
+          <select id="preset"></select>
+        </label>
+        <button id="reset" class="ghost small" type="button">Reset</button>
+      </div>
+      <div id="ctl-sail" class="ctl-group"><h2>Sail &amp; payload</h2></div>
+      <div id="ctl-beam" class="ctl-group"><h2>Laser beam <span class="tag">idealized input</span></h2></div>
+      <div id="ctl-mission" class="ctl-group"><h2>Mission</h2></div>
+      <details id="ctl-more" class="ctl-group">
+        <summary>More options</summary>
+      </details>
+      <p class="ctl-note">Changing any value recomputes both trajectories instantly. The animation keeps playing at the same mission time.</p>
+      <div class="ctl-actions">
+        <button id="share" class="ghost small" type="button">Copy link to this setup</button>
+        <button id="csv" class="ghost small" type="button">Download trajectory CSV</button>
+      </div>
+    </aside>
+
+    <main>
+      <!-- ============================================================ SIMULATION -->
+      <section class="tab-panel" id="tab-sim" role="tabpanel">
+        <div class="card stage">
+          <div class="stage-head">
+            <div class="phase"><span id="phase-dot" class="phase-dot"></span><span id="phase">Near field</span></div>
+            <div class="clocks">
+              <div><span class="lbl">Earth time</span><span id="clock-earth" class="val">0 s</span></div>
+              <div><span class="lbl">Ship time (relativistic)</span><span id="clock-ship" class="val">0 s</span></div>
+              <div><span class="lbl">Playback</span><span id="clock-warp" class="val">×1</span></div>
+            </div>
+          </div>
+          <canvas id="track" aria-label="Animation of the classical and relativistic sails travelling from Earth to the target on a logarithmic distance scale"></canvas>
+          <div class="transport">
+            <button id="play" class="primary" type="button" aria-label="Pause">❚❚ Pause</button>
+            <button id="restart" class="ghost" type="button">↺ Restart</button>
+            <label class="speed">Speed
+              <select id="speed">
+                <option value="auto" selected>Auto (log time, whole trip ≈ 40 s)</option>
+                <option value="1">Real time ×1</option>
+                <option value="10">×10</option>
+                <option value="100">×100</option>
+                <option value="1000">×1,000</option>
+                <option value="1e4">×10⁴</option>
+                <option value="1e5">×10⁵ (≈ 1 day/s)</option>
+                <option value="1e6">×10⁶</option>
+                <option value="3.15576e7">×3×10⁷ (1 yr/s)</option>
+                <option value="3.15576e8">×3×10⁸ (10 yr/s)</option>
+              </select>
+            </label>
+            <input id="scrub" type="range" min="0" max="1000" value="0" aria-label="Mission time (log scale)">
+          </div>
+        </div>
+
+        <div id="tiles" class="tiles"></div>
+
+        <div class="grid2">
+          <div class="card">
+            <h3>Live state</h3>
+            <table class="readout" id="readout">
+              <thead><tr><th></th><th><span class="key classical"></span>Classical</th><th><span class="key relativistic"></span>Relativistic</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div class="card spot-card">
+            <h3>Beam spot at the relativistic sail</h3>
+            <canvas id="spot" aria-label="Laser spot size compared with the sail size"></canvas>
+            <p id="spot-text" class="muted small"></p>
+          </div>
+        </div>
+
+        <div class="grid2">
+          <div class="card"><h3>Speed vs time</h3><div class="legend" data-legend></div><div id="chart-beta"></div></div>
+          <div class="card"><h3>Acceleration felt by the sail</h3><div class="legend" data-legend></div><div id="chart-acc"></div></div>
+        </div>
+      </section>
+
+      <!-- ============================================================ EXPLORE -->
+      <section class="tab-panel" id="tab-explore" role="tabpanel" hidden>
+        <p class="lede">Each curve sweeps one input with all the others at their current values. The dot marks the current setup.</p>
+        <div class="grid2">
+          <div class="card"><h3>Areal density → limiting speed</h3><p class="muted small" id="exp-sigma-note"></p><div class="legend" data-legend></div><div id="chart-sigma"></div></div>
+          <div class="card"><h3>Reflectivity → travel time</h3><p class="muted small">Momentum per photon η = 2R + (1−R)A</p><div class="legend" data-legend></div><div id="chart-refl"></div></div>
+          <div class="card"><h3>Laser power → limiting speed</h3><p class="muted small">The classical model passes the speed of light; the relativistic one cannot.</p><div class="legend" data-legend></div><div id="chart-power"></div></div>
+          <div class="card"><h3>Speed vs distance</h3><p class="muted small">The sail gains most of its speed inside L0; beyond it the captured power falls as (L0/x)².</p><div class="legend" data-legend></div><div id="chart-dist"></div></div>
+        </div>
+      </section>
+
+      <!-- ============================================================ UNCERTAINTY -->
+      <section class="tab-panel" id="tab-unc" role="tabpanel" hidden>
+        <p class="lede">Monte Carlo propagation of uncertain inputs through both models, compared with first-order (linear) propagation. The sail size is held at its designed value; the spreads below are illustrative assumptions you can edit.</p>
+        <div class="grid-unc">
+          <div class="card">
+            <h3>Input uncertainty</h3>
+            <table class="spec" id="spec"></table>
+            <div class="mc-run">
+              <label>Samples <select id="mc-n"><option>1000</option><option selected>5000</option><option>20000</option></select></label>
+              <label>Seed <input id="mc-seed" type="number" value="20261112"></label>
+              <button id="mc-go" class="primary small" type="button">Re-run</button>
+            </div>
+            <p class="muted small" id="mc-time"></p>
+          </div>
+          <div class="card">
+            <h3>Travel time to target, distribution</h3>
+            <div class="legend" data-legend></div>
+            <div id="chart-mc"></div>
+            <table class="readout" id="mc-table"></table>
+          </div>
+        </div>
+        <div class="grid2">
+          <div class="card"><h3>Which input matters? (relativistic travel time)</h3>
+            <div class="legend"><span><i class="key ramp-lo"></i>input at its 5th percentile</span><span><i class="key ramp-hi"></i>input at its 95th percentile</span></div>
+            <div id="chart-tornado"></div></div>
+          <div class="card"><h3>Share of variance (linear propagation)</h3><table class="readout" id="var-table"></table>
+            <p class="muted small">Elasticity S = %-change of travel time per 1 % change of the input. Relativistic elasticities are smaller than classical ones: approaching c makes the speed less sensitive to everything.</p></div>
+        </div>
+      </section>
+
+      <!-- ============================================================ MODEL -->
+      <section class="tab-panel prose" id="tab-model" role="tabpanel" hidden>
+        <div class="card">
+          <h2>Model</h2>
+          <p>A sail of size <i>D</i> and areal density <i>σ</i> carries a payload <i>m</i>₀ and is pushed by a laser array of size <i>d</i>, power <i>P</i> and wavelength <i>λ</i>. Formulas follow the UCSB 1-D laser propulsion calculators and Lubin (2016).</p>
+          <div class="eq">m = σ ξ D² + m₀ &nbsp;&nbsp;(ξ = 1 square, π/4 circular) &nbsp;&nbsp;&nbsp; η = 2R + (1−R)A &nbsp;&nbsp;&nbsp; a₀ = η P / (m c) &nbsp;&nbsp;&nbsp; L₀ = d D / (2 λ α)</div>
+          <p><b>Beam capture.</b> The diffraction-limited spot grows linearly with distance. It is smaller than the sail until <i>L</i>₀, and beyond that only a fraction <i>f</i> = (<i>L</i>₀/<i>x</i>)² of the power hits the sail. <i>α</i> = 1.22 for a circular array and 1 for a square one, times a beam-quality factor ≥ 1.</p>
+          <div class="eq">Classical: &nbsp; dv/dt = a₀ f(x) &nbsp;&nbsp;&nbsp;&nbsp; Relativistic: &nbsp; c·d(γβ)/dt = a₀ f(x) · (1−β)/(1+β)</div>
+          <p>In the sail's frame the received power is Doppler-reduced by (1−β)/(1+β): photon energy and photon arrival rate each drop by √((1−β)/(1+β)). With the work integral <i>W</i>(<i>x</i>) = ∫ f dx (= x inside L₀, 2L₀ − L₀²/x beyond), both models have closed-form solutions:</p>
+          <div class="eq">Classical: v = √(2 a₀ W) &nbsp;⇒&nbsp; v∞ = √2 · v(L₀) &nbsp;&nbsp;&nbsp;&nbsp; Relativistic: (𝒟−1)²(𝒟+2) = 6 a₀ W / c², &nbsp;𝒟 = √((1+β)/(1−β))</div>
+          <p>Both corrections depend on a single number, β₀ = √(2 a₀ L₀)/c, the classical speed at L₀. Earth time comes from <i>t</i> = ∫ dx/v and ship time from <i>τ</i> = ∫ dt/γ. Inside L₀ these are closed form: <i>t</i> = (c/a₀)(𝒟³+3𝒟−4)/6 and <i>τ</i> = (c/a₀)(𝒟²−1)/2. Beyond L₀ they are computed with Gauss–Legendre quadrature in ln <i>x</i>.</p>
+        </div>
+        <div class="card">
+          <h2>Assumptions</h2>
+          <ul>
+            <li>One-dimensional motion, normal incidence, flat rigid sail riding the beam stably (no tilt, spin or deformation).</li>
+            <li>Constant laser power. Laser-on time is set by the sail's distance (on until x_stop), so the light-travel delay after switch-off is not modelled.</li>
+            <li>Idealized diffraction: full capture inside L₀, (L₀/x)² beyond. No atmosphere, pointing jitter or side-lobes.</li>
+            <li>Opaque sail by default: light that isn't reflected is absorbed (A = 1), then re-radiated isotropically in the sail frame, so the rest mass is constant. Thermal limits are reported (peak equilibrium temperature) but not enforced.</li>
+            <li>No gravity (Earth, Sun), no interstellar drag or dust, no deceleration at the target (flyby).</li>
+          </ul>
+        </div>
+        <div class="card">
+          <h2>Validation</h2>
+          <ul>
+            <li>Classical outputs reproduce the UCSB classical calculator to machine precision: sail mass, L₀, acceleration, time to L₀, speed at L₀, limiting speed, travel time and temperature.</li>
+            <li>Relativistic speeds match the UCSB relativistic calculator's lookup tables to their tabulated precision. Its limiting-speed formula is algebraically identical to the cubic above.</li>
+            <li>The closed forms agree with direct numerical integration (SciPy <code>solve_ivp</code>, DOP853, rtol 10⁻¹¹) to about 10⁻¹¹. This JavaScript engine agrees with the Python reference to better than 10⁻¹⁰.</li>
+            <li>One discrepancy: the relativistic calculator's <em>time to L₀</em> expression equals the integrated value multiplied by β<sub>classical</sub>/β<sub>relativistic</sub>. That makes it about 12 % too long for the default inputs (180 s vs 161 s).</li>
+          </ul>
+          <p>Python reference, tests, figures and report: <a id="repo-link" href="https://github.com/rainnreinmiller/lightsail-sim">github.com/rainnreinmiller/lightsail-sim</a> · <a href="report/report.pdf">Report (PDF)</a></p>
+        </div>
+        <div class="card">
+          <h2>References</h2>
+          <ul class="refs">
+            <li>P. Lubin, “A Roadmap to Interstellar Flight,” <i>JBIS</i> 69, 40–72 (2016), arXiv:1604.01356.</li>
+            <li>N. Kulkarni, P. Lubin, Q. Zhang, “Relativistic Spacecraft Propelled by Directed Energy,” <i>AJ</i> 155, 155 (2018), arXiv:1710.10732.</li>
+            <li>UCSB Experimental Cosmology Group, Laser Propulsion Classical 1D and Relativistic 1D calculators, deepspace.ucsb.edu (2023).</li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+  <footer class="foot">Idealized educational model. Lightsail motion only; laser hardware design is out of scope.</footer>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

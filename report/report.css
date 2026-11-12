@@ -1,0 +1,21 @@
+@page { size: Letter; margin: 0.75in 0.8in; }
+html { font-family: "DejaVu Sans", system-ui, sans-serif; font-size: 10pt; line-height: 1.45; color: #111; }
+body { max-width: none; margin: 0; }
+header#title-block-header { margin-bottom: 1.2em; border-bottom: 1px solid #ccc; padding-bottom: 0.6em; }
+h1.title { font-size: 17pt; margin: 0 0 0.2em; line-height: 1.2; }
+p.subtitle { font-size: 11pt; color: #444; margin: 0; }
+h2 { font-size: 13pt; margin: 1.3em 0 0.4em; border-bottom: 1px solid #ddd; padding-bottom: 0.15em; }
+h3 { font-size: 11pt; margin: 1.1em 0 0.3em; }
+p, li { text-align: left; }
+table { border-collapse: collapse; margin: 0.6em 0 0.9em; font-size: 9pt; break-inside: avoid; }
+th, td { border-bottom: 1px solid #ddd; padding: 3px 8px; text-align: left; vertical-align: top; }
+th { border-bottom: 1.5px solid #888; }
+figure { margin: 0.8em 0 1em; break-inside: avoid; text-align: center; }
+figure img { width: 100%; }
+figcaption { font-size: 8.8pt; color: #333; text-align: left; margin-top: 0.3em; }
+code { font-family: "DejaVu Sans Mono", monospace; font-size: 8.8pt; }
+pre { background: #f4f4f2; padding: 8px 10px; border-radius: 4px; font-size: 8.5pt; overflow-x: hidden; white-space: pre-wrap; }
+math[display="block"] { margin: 0.6em 0; font-size: 11pt; }
+a { color: #1f5fb4; text-decoration: none; }
+h2, h3 { break-after: avoid; page-break-after: avoid; }
+figure { page-break-inside: avoid; }
