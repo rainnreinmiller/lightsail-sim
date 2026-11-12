@@ -1,0 +1,196 @@
+---
+title: "Laser-Propelled Lightsails: How Sail Properties Set Acceleration, Speed and Interstellar Travel Time"
+subtitle: "An idealized 1-D simulation, classical and relativistic, with sensitivity and uncertainty analysis"
+---
+
+**Prepared for:** Prof. Philip Lubin, UCSB Experimental Cosmology Group
+
+**Code, tests and interactive simulation:** <https://github.com/rainnreinmiller/lightsail-sim> · live demo: <https://rainnreinmiller.github.io/lightsail-sim/>
+
+## Summary
+
+**Research question.** How do the physical properties of a lightsail affect its predicted acceleration, velocity and interstellar travel time? The model follows the 1-D directed-energy propulsion model of Lubin (2016) and Kulkarni, Lubin & Zhang (2018), as implemented in the UCSB *Laser Propulsion* calculators. It is solved three independent ways: closed form, direct ODE integration (SciPy), and a JavaScript port that runs in the browser. All three agree to about 10⁻¹⁰.
+
+Key findings for the UCSB calculator's default inputs (100 GW, 10 km array, 1.06 µm, 1 g payload, 1 g/m² sail):
+
+1. **Areal density σ.** At fixed sail size, peak acceleration falls as $1/(\sigma A + m_0)$. With the optimal sail (sail mass = payload mass), peak acceleration is fixed at 34,000 g. A lighter sail instead buys a larger sail and a longer acceleration distance $L_0$, so the limiting speed scales as $(\sigma m_0)^{-1/4}$. Going from 10 to 0.1 g/m² raises $v_\infty$ from 12.3 % c to 32.4 % c (relativistic).
+2. **Reflectivity R.** The momentum per photon is $\eta = 2R + (1-R)A$, so classically $v_\infty \propto \sqrt{1+R}$. A perfect reflector is 41 % faster than a perfect absorber (classical) and 35 % faster (relativistic). That shortens the trip to α Cen from 28.8 to 21.3 yr. Near R = 1, however, speed barely depends on R while the absorbed power, and so the sail temperature, depends on it strongly. Survival, not momentum, sets the reflectivity requirement.
+3. **Classical vs relativistic.** The relativistic correction depends on one number, $\beta_0 = \sqrt{2a_0L_0}/c$, the classical speed at $L_0$. For the defaults ($\beta_0 = 0.169$) relativity lowers $v_\infty$ from 24.0 % c to 20.5 % c (−14.5 %) and lengthens the trip from 18.2 to 21.3 yr (+17 %). At 10 TW the classical model predicts 2.4c, while the relativistic one gives 0.78c.
+4. **Uncertainty.** Plausible input spreads (Monte Carlo, N = 10⁵) give a relativistic travel time of 23.6 yr (90 % interval 21.2–26.0 yr). The beam's diffraction factor carries 64 % of the variance. Among the sail properties, areal density and payload mass contribute 12 % each and reflectivity only 0.3 %. The sail size has zero sensitivity at the optimum. Relativity *reduces* the sensitivity to every input by a factor of 0.85.
+5. **Calculator check.** Our outputs reproduce the UCSB classical calculator exactly and the relativistic calculator's speeds to its table precision. We found one inconsistency: the relativistic calculator's *time to L₀* is 180 s, but direct integration gives 161 s. Its formula carries an extra factor $\beta_\text{classical}/\beta_\text{relativistic}$.
+
+## 1. Model and assumptions
+
+A sail of size $D$ (square, area $\xi D^2$ with $\xi = 1$, or circular with $\xi = \pi/4$) and areal density $\sigma = \rho h$ carries a payload $m_0$. A laser array of size $d$ and power $P$ at wavelength $\lambda$ pushes it. The sail reflects a fraction $R$ of the light and absorbs a fraction $A$ of the remainder:
+
+$$
+m = \sigma \xi D^2 + m_0,\qquad \eta = 2R + (1-R)A,\qquad a_0 = \frac{\eta P}{m c},\qquad L_0 = \frac{d\,D}{2\lambda\alpha}.
+$$
+
+The diffraction-limited spot grows linearly with distance and equals the sail size at $L_0$. Here $\alpha = 1.22$ for a circular array and 1 for a square one, times an optional beam-quality factor. The fraction of the beam that hits the sail is $f(x) = 1$ for $x \le L_0$, $(L_0/x)^2$ for $L_0 < x \le x_\text{stop}$, and 0 once the laser is switched off. The equations of motion are
+
+$$
+\text{classical:}\quad \frac{dv}{dt} = a_0 f(x), \qquad\qquad
+\text{relativistic:}\quad c\,\frac{d(\gamma\beta)}{dt} = a_0 f(x)\,\frac{1-\beta}{1+\beta}.
+$$
+
+The relativistic factor is the double Doppler shift. In the sail frame each photon's energy and the photon arrival rate are both reduced by $\sqrt{(1-\beta)/(1+\beta)}$. Absorbed energy is assumed to be re-radiated isotropically in the sail frame, so the rest mass is constant and the longitudinal force is frame-invariant.
+
+**Closed forms.** Using the energy theorem $mc^2\,d\gamma = F\,dx$ and the work integral $W(x) = \int_0^x f\,dx'$ ($= x$ inside $L_0$, $2L_0 - L_0^2/x$ beyond),
+
+$$
+\text{classical:}\ v = \sqrt{2a_0W}\ \Rightarrow\ v_\infty = \sqrt2\,v(L_0);\qquad
+\text{relativistic:}\ (\mathcal D-1)^2(\mathcal D+2) = \frac{6a_0W}{c^2},\quad \mathcal D=\sqrt{\frac{1+\beta}{1-\beta}}.
+$$
+
+The relativistic cubic is solved analytically, in a form that keeps full precision when β ≪ 1. Writing $q = 6a_0W/c^2 = 3\beta_0^2\,W/L_0$ shows that the ratio of relativistic to classical speed depends only on $\beta_0$. Inside $L_0$ the Earth time and ship proper time are also closed form: $t = \tfrac{c}{a_0}\tfrac{\mathcal D^3+3\mathcal D-4}{6}$ and $\tau = \tfrac{c}{a_0}\tfrac{\mathcal D^2-1}{2}$. Beyond $L_0$ we use $t = \int dx/v$ and $\tau=\int dx/(\gamma v)$: closed form classically, and Gauss–Legendre quadrature in $\ln x$ relativistically.
+
+**Assumptions.**
+
+- One-dimensional motion at normal incidence. The sail is flat and rigid and rides the beam stably (no tilt, spin or deformation).
+- Constant power, with idealized diffraction: full capture inside $L_0$ and $(L_0/x)^2$ beyond. No atmosphere, pointing jitter or side-lobes.
+- The opaque sail ($A = 1$, as in the UCSB defaults) re-radiates absorbed power. Thermal limits are reported but not enforced.
+- No gravity, no interstellar drag, no deceleration at the target (flyby).
+- The laser stays on until $x_\text{stop}$, which defaults to infinity. Light-travel delay after switch-off is ignored.
+
+The laser is an idealized, fixed input. Hardware design and beam delivery are outside the scope of this study.
+
+**Baseline** (UCSB calculator defaults): P = 100 GW; d = 10 km, circular (α = 1.22); λ = 1060 nm; m₀ = 1 g; h = 1 µm and ρ = 1 g/cm³, so σ = 1 g/m²; optimal square sail, D = 1 m (1 g); R = 1, A = 1; target 4.37 ly (α Cen A/B).
+
+## 2. Numerical methods and validation
+
+| Method | Purpose |
+|---|---|
+| Closed form (`lightsail/physics.py`, NumPy-vectorized) | speeds, near-field times; fast enough for 10⁵-sample Monte Carlo |
+| Gauss–Legendre quadrature in ln x | relativistic far-field time and proper time |
+| `scipy.integrate.solve_ivp` (DOP853, rtol 10⁻¹¹, events at L₀, laser-off, target) | independent check by direct integration of the ODE |
+| JavaScript port (`web/js/physics.js`) | powers the browser simulation; cross-checked against Python under Node |
+
+The test suite has 48 tests (`pytest`). It verifies the following:
+
+- The closed forms match the ODE to < 10⁻⁸ in β, t, τ and acceleration. The observed error is about 10⁻¹¹.
+- The relativistic model reduces to the classical one at low speed and never reaches c.
+- $v_\infty = \sqrt2\,v_0$ classically.
+- The work–energy theorem holds.
+- The optimal sail maximizes $v_\infty$.
+- The JS engine matches Python to < 10⁻¹⁰ on 18 random and edge-case parameter sets.
+
+**Comparison with the UCSB calculators (default inputs).**
+
+| Quantity | UCSB classical | This work, classical | UCSB relativistic | This work, relativistic |
+|---|---|---|---|---|
+| Peak acceleration | 34,014 g | 34,014 g | 34,014 g | 34,014 g |
+| L₀ | 3.866×10⁹ m | 3.866×10⁹ m | same | same |
+| Speed at L₀ | 16.94 % c | 16.94 % c | 15.11 % c (table) | 15.15 % c |
+| Time to L₀ | 152.3 s | 152.3 s | **180.1 s** | **161.1 s** (ODE: 161.1 s) |
+| Limiting speed | 23.96 % c | 23.96 % c | 20.36 % c (table) | 20.48 % c |
+| Time to 4.37 ly | 18.25 yr\* | 18.24 yr | 21.47 yr\* | 21.34 yr (ship: 20.89 yr) |
+
+\*The calculators use a 365-day year and coast-only travel time. The acceleration phase changes the travel time by < 10⁻⁵.
+
+The classical columns agree to machine precision. The relativistic calculator interpolates lookup tables tabulated to about 0.6 %, which explains the 0.3–0.6 % differences in speed. Its limiting-speed relation, $\tfrac{(2-4\beta_0)\sqrt{1-\beta_0^2}}{3(1-\beta_0)^2} - \tfrac13 = \tfrac13 - G(\beta_\infty)$, is algebraically identical to our cubic with $W = 2L_0$ (tested to 10⁻¹²). Its time-to-L₀ expression is not. It equals our integrated time multiplied by $\beta_\text{cl}/\beta_\text{rel}$, which overestimates the time by 12 % at these inputs and by more at higher β₀.
+
+## 3. Results
+
+### 3.1 Sail mass per unit area → acceleration
+
+![Fig. 1. (a) Peak acceleration vs areal density for a 1 m sail and three payload masses. (b) Relativistic limiting speed vs sail size for three areal densities; dots mark the optimum D* = √(m₀/σ).](../figures/fig1_areal_density.png)
+
+At fixed sail size the peak acceleration is $a_0 = \eta P/[c(\sigma\xi D^2 + m_0)]$ (Fig. 1a). It is payload-limited for $\sigma\xi D^2 \ll m_0$ and falls as $1/\sigma$ once the sail dominates the mass. The sail size involves a trade-off. A larger sail is heavier, but it extends $L_0 \propto D$ and so collects photons for longer. The limiting speed $v_\infty^2 \propto D/(\sigma\xi D^2 + m_0)$ peaks where the sail mass equals the payload mass (Fig. 1b). This is the calculator's "optimal sail", at which $a_0$ no longer depends on σ. A lighter sail material then acts *only* by allowing a larger optimal sail, which gives $v_\infty \propto (\sigma m_0)^{-1/4}$ classically:
+
+| σ (g/m²) | D* (m) | v∞ classical | v∞ relativistic |
+|---|---|---|---|
+| 0.1 | 3.16 | 42.6 % c | 32.4 % c |
+| 1 | 1.00 | 24.0 % c | 20.5 % c |
+| 10 | 0.32 | 13.5 % c | 12.3 % c |
+
+### 3.2 Reflectivity → momentum transfer
+
+![Fig. 2. (a) Limiting speed vs reflectivity (non-reflected light absorbed); top axis: momentum factor η = 1 + R. (b) Travel time to α Cen vs R; top axis: power absorbed by the sail.](../figures/fig2_reflectivity.png)
+
+Each reflected photon delivers twice its momentum and each absorbed photon delivers it once, so the force per watt is $(1+R)/c$ for an opaque sail. Classically $v_\infty \propto \sqrt{1+R}$, a factor √2 between R = 0 and R = 1. Relativistically the gain is slightly smaller (×1.35), because the faster sail sees more strongly redshifted light (Fig. 2a). Travel time falls by 26–29 % (Fig. 2b). The thermal load behaves very differently. The absorbed power is $(1-R)AP$, and the radiative-equilibrium temperature of a 1 m² sail (emissivity 1 on both faces, UCSB definition) is:
+
+| R | v∞ (relativistic) | absorbed power | T_eq |
+|---|---|---|---|
+| 0.9 | 20.04 % c | 10 GW | 17,200 K |
+| 0.99 | 20.43 % c | 1 GW | 9,700 K |
+| 0.9999 | 20.477 % c | 10 MW | 3,100 K |
+| 0.99999 | 20.478 % c | 1 MW | 1,700 K |
+
+Going from R = 0.99 to 0.99999 changes the speed by 0.2 % but lowers the temperature by a factor of 5.6. Above R ≈ 0.99, reflectivity matters for the sail's survival, not its speed. This motivates the very low absorption (≲ 10⁻⁵) dielectric reflectors studied for directed-energy sails.
+
+### 3.3 Classical vs relativistic motion
+
+![Fig. 3. (a) Speed vs time from direct ODE integration for 100 GW and 10 TW; dots mark L₀. (b) Ratio of relativistic to classical speed at L₀ and at x → ∞ as a function of β₀; open circles are the UCSB relativistic calculator's lookup table.](../figures/fig3_classical_vs_relativistic.png)
+
+For the defaults the sail reaches $L_0$ (0.026 AU) after 161 s at 15.1 % c. It reaches 90 % of $v_\infty$ after 4.3 min and 99 % after 25 min (at 0.55 AU), then coasts for 21 years. The two models diverge as soon as β is no longer small (Fig. 3a). At 10 TW the classical model passes c after 9 s and settles at 2.4c, while the relativistic sail approaches 0.78c. Because $q = 3\beta_0^2 W/L_0$, the relativistic correction collapses onto a single universal curve in $\beta_0$ (Fig. 3b). The UCSB lookup table falls on it. The correction is about 1 % at β₀ = 0.01, 9 % at β₀ = 0.1, 14.5 % for the defaults, and 35 % at β₀ = 0.5. Classical predictions of travel time should therefore not be trusted above $\beta_0 \approx 0.05$ (a 5 % error).
+
+### 3.4 Sensitivity and uncertainty
+
+![Fig. 4. (a) One-at-a-time sensitivity of the relativistic travel time (inputs at their 5th and 95th percentiles, others at their means). (b) Monte Carlo travel-time distributions (N = 10⁵) for both models. Colored bars show the 5–95 % range with the median as a dot; gray bars show first-order (linear) propagation, mean ± 1σ.](../figures/fig4_uncertainty.png)
+
+**Local sensitivities.** The logarithmic elasticities $S = \partial\ln v_\infty/\partial\ln p$ are exact in the classical model:
+
+- P, d: +½
+- λ, α: −½
+- σ and m₀: −¼ each, for the optimal sail with D held fixed
+- R: +¼ at R = 1
+- D: zero at the optimum
+
+Relativistically every elasticity is smaller by the same factor (0.847 at the defaults). As $v\to c$ the speed becomes harder to change, so relativistic predictions are less sensitive to input errors.
+
+**Monte Carlo.** The uncertainty budget is illustrative:
+
+- σ: ±10 % (1σ)
+- m₀: ±10 %
+- D: ±2 %
+- R: uniform on 0.95–1.00
+- P: ±5 %
+- beam-quality factor: uniform on 1.0–1.5
+
+The sail size is fixed at its designed value.
+
+| | Classical | Relativistic |
+|---|---|---|
+| Median travel time (90 % interval) | 20.5 yr (18.1–22.9) | 23.6 yr (21.2–26.0) |
+| MC mean ± std | 20.50 ± 1.49 yr | 23.58 ± 1.48 yr |
+| Linear propagation mean ± std | 20.52 ± 1.48 yr | 23.60 ± 1.47 yr |
+| Median limiting speed | 21.3 % c | 18.6 % c |
+
+First-order propagation reproduces the Monte Carlo spread to within 1 %, because the outputs are smooth power laws of the inputs. Two conclusions follow:
+
+1. The idealized defaults (R = 1, a perfect beam) are a best case. Realistic spreads shift the median trip by 2.2 yr.
+2. The variance is dominated by the effective diffraction factor (64 %), with σ, m₀ and P at 12 % each and R at 0.3 %. For the spacecraft itself, controlling **mass** (sail areal density and payload) matters far more than squeezing out the last percent of reflectivity, while reflectivity is constrained by heating (§3.2).
+
+## 4. The interactive simulation
+
+The browser simulation is a static page with no server, deployed with GitHub Pages. It runs the validated JavaScript engine:
+
+- **Interactive.** Every slider recomputes both trajectories in about 2 ms. The inputs are areal density, reflectivity, absorption, payload, sail size and shape, power, array size and shape, wavelength, beam quality, laser-off distance and target. A *Copy link* button stores the setup in the URL.
+- **Real-time animation.** Classical and relativistic sails race along a logarithmic distance track from Earth to the target, with landmarks, $L_0$, a beam cone that grows past the sail beyond $L_0$, and a beam-spot inset. Playback runs in true real time (×1, so the baseline reaches L₀ in 2.7 min), at fixed warps up to 10 yr/s, or in an automatic log-time mode that plays the whole 21-year trip in about 40 s. Live readouts include Earth and ship clocks, speed, γ, acceleration, captured beam fraction and the Doppler-shifted wavelength.
+- **Explore and Uncertainty tabs.** The Explore tab shows live parameter sweeps for σ, R, P and β(x). The Uncertainty tab runs an in-browser Monte Carlo (5,000 samples in about 0.15 s) with a tornado chart, variance shares and an editable uncertainty budget. Trajectories can be downloaded as CSV.
+
+## 5. Limitations and possible extensions
+
+The model is deliberately idealized:
+
+- Real sails must be stabilized against tilt and beam-riding instabilities. A 2-D or 3-D model would add lateral dynamics.
+- Real beams have side-lobes, pointing jitter and atmospheric losses, and the light-travel delay matters for a pulsed or switched-off laser.
+- The thermal limit is reported but not enforced. A coupled thermal model would cap the usable flux for a given absorption.
+- Gravity and interstellar drag are negligible for these speeds and times, and deceleration at the target is not modelled.
+
+## 6. How to run
+
+```bash
+pip install -r requirements.txt
+python -m pytest                    # 48 validation tests (needs Node.js for the JS cross-check)
+python scripts/make_figures.py      # regenerates figures/ and figures/results.json
+python -m http.server -d web 8000   # open http://localhost:8000
+```
+
+## References
+
+1. P. Lubin, “A Roadmap to Interstellar Flight,” *J. British Interplanetary Society* **69**, 40–72 (2016); arXiv:1604.01356.
+2. N. Kulkarni, P. Lubin, Q. Zhang, “Relativistic Spacecraft Propelled by Directed Energy,” *Astronomical Journal* **155**, 155 (2018); arXiv:1710.10732.
+3. UCSB Experimental Cosmology Group, *Laser Propulsion Classical 1D* and *Relativistic Laser Propulsion 1D* standalone calculators, deepspace.ucsb.edu (2023).
+4. P. Virtanen et al., “SciPy 1.0: fundamental algorithms for scientific computing in Python,” *Nature Methods* **17**, 261–272 (2020).
