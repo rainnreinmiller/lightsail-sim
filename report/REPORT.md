@@ -17,7 +17,8 @@ Key findings for the UCSB calculator's default inputs (100 GW, 10 km array, 1.06
 2. **Reflectivity R.** The momentum per photon is $\eta = 2R + (1-R)A$, so classically $v_\infty \propto \sqrt{1+R}$. A perfect reflector is 41 % faster than a perfect absorber (classical) and 35 % faster (relativistic). That shortens the trip to α Cen from 28.8 to 21.3 yr. Near R = 1, however, speed barely depends on R while the absorbed power, and so the sail temperature, depends on it strongly. Survival, not momentum, sets the reflectivity requirement.
 3. **Classical vs relativistic.** The relativistic correction depends on one number, $\beta_0 = \sqrt{2a_0L_0}/c$, the classical speed at $L_0$. For the defaults ($\beta_0 = 0.169$) relativity lowers $v_\infty$ from 24.0 % c to 20.5 % c (−14.5 %) and lengthens the trip from 18.2 to 21.3 yr (+17 %). At 10 TW the classical model predicts 2.4c, while the relativistic one gives 0.78c.
 4. **Uncertainty.** Plausible input spreads (Monte Carlo, N = 10⁵) give a relativistic travel time of 23.6 yr (90 % interval 21.2–26.0 yr). The beam's diffraction factor carries 64 % of the variance. Among the sail properties, areal density and payload mass contribute 12 % each and reflectivity only 0.3 %. The sail size has zero sensitivity at the optimum. Relativity *reduces* the sensitivity to every input by a factor of 0.85.
-5. **Checks against the calculators and papers.** Our outputs reproduce the UCSB classical calculator exactly and the relativistic calculator's speeds to its table precision. Our equations are those of Lubin (2016) and Kulkarni, Lubin & Zhang (2018), and the model reproduces all 13 mission cases in Tables 1–2 of the 2018 paper. We found one inconsistency: the relativistic calculator's *time to L₀* is 180 s, but direct integration gives 161 s. The 2018 paper's own table supports the integrated value (164 s vs. our 163 s for its 1 g case).
+5. **Live data (simulated).** A Bayesian estimator turns a stream of Doppler tracking measurements into a live prediction. The stream is *simulated*, because no laser-driven sail has flown. Its 90 % travel-time interval shrinks from 4.8 yr to 0.15 yr within an hour of launch and to 0.06 yr by the end of the stream. The intervals are calibrated: they contained the hidden truth for 90 of 100 simulated sails. Before the sail passes L₀ the data fix the acceleration but say nothing about L₀, and therefore little about the top speed.
+6. **Checks against the calculators and papers.** Our outputs reproduce the UCSB classical calculator exactly and the relativistic calculator's speeds to its table precision. Our equations are those of Lubin (2016) and Kulkarni, Lubin & Zhang (2018), and the model reproduces all 13 mission cases in Tables 1–2 of the 2018 paper. We found one inconsistency: the relativistic calculator's *time to L₀* is 180 s, but direct integration gives 161 s. The 2018 paper's own table supports the integrated value (164 s vs. our 163 s for its 1 g case).
 
 ## 1. Model and assumptions
 
@@ -74,6 +75,7 @@ The simulator uses no measured data. Every output is computed from the equations
 | Sail equilibrium temperature | UCSB calculators | `params.py` |
 | Uncertainty ranges, beam-quality factor, presets | Our illustrative assumptions | `uncertainty.py`, `web/js/app.js` |
 | Proxima Centauri (4.2465 ly), Barnard's Star (5.96 ly), landmark distances, physical constants | Standard reference values | `constants.py` |
+| Tracking measurements in §3.5 and the *Live data* tab | **SIMULATED**: this model plus Gaussian noise, for a hidden sail drawn from the uncertainty ranges. No real lightsail tracking data exist. | `telemetry.py`, `web/js/assimilation.js` |
 
 ## 2. Numerical methods and validation
 
@@ -84,7 +86,7 @@ The simulator uses no measured data. Every output is computed from the equations
 | `scipy.integrate.solve_ivp` (DOP853, rtol 10⁻¹¹, events at L₀, laser-off, target) | independent check by direct integration of the ODE |
 | JavaScript port (`web/js/physics.js`) | powers the browser simulation; cross-checked against Python under Node |
 
-The test suite has 78 tests (`pytest`). It verifies the following:
+The test suite has 91 tests (`pytest`). It verifies the following:
 
 - The closed forms match the ODE to < 10⁻⁸ in β, t, τ and acceleration. The observed error is about 10⁻¹¹.
 - The relativistic model reduces to the classical one at low speed and never reaches c.
@@ -93,6 +95,7 @@ The test suite has 78 tests (`pytest`). It verifies the following:
 - The optimal sail maximizes $v_\infty$.
 - The JS engine matches Python to < 10⁻¹⁰ on 18 random and edge-case parameter sets.
 - The model matches the equations of Lubin (2016) and Kulkarni et al. (2018) and reproduces the 2018 paper's Tables 1–2 (`tests/test_papers.py`).
+- The live estimator recovers the truth from low-noise data, and its 90 % intervals are calibrated over repeated simulated sails. It matches its JavaScript port to < 10⁻⁶ (`tests/test_assimilation.py`).
 
 **Comparison with the UCSB calculators (default inputs).**
 
@@ -195,12 +198,37 @@ First-order propagation reproduces the Monte Carlo spread to within 1 %, because
 1. The idealized defaults (R = 1, a perfect beam) are a best case. Realistic spreads shift the median trip by 2.2 yr.
 2. The variance is dominated by the effective diffraction factor (64 %), with σ, m₀ and P at 12 % each and R at 0.3 %. For the spacecraft itself, controlling **mass** (sail areal density and payload) matters far more than squeezing out the last percent of reflectivity, while reflectivity is constrained by heating (§3.2).
 
+### 3.5 Live data: assimilating a stream of tracking measurements (SIMULATED)
+
+![Fig. 5. (a) A SIMULATED stream of Doppler speed measurements (pink, noise ±0.002 in β) of a hidden sail, with the prior 90 % range (gray) and the fit to all records (orange). (b) The predicted travel time to α Cen (median and 90 % interval) as the records reach Earth; the gray band is the prior.](../figures/fig5_live_assimilation.png)
+
+No laser-driven lightsail has flown, so there are no real measurements to stream. To show how the model would be used with real data, the simulator generates the measurements a ground station would make and processes them live:
+
+- **Hidden sail.** One sail is drawn at random from the §3.4 uncertainty ranges around the Kulkarni et al. (2018) Table 1 design.
+- **Measurements.** The array reads the sail's speed from the Doppler shift of the reflected beam, λ<sub>r</sub>/λ = (1+β)/(1−β), with noise σ<sub>β</sub> = 0.002. There are 30 records per decade of time from t = 1 s to arrival, 267 in total. Each record reaches Earth after its light-travel time x/c, which grows from 13 s at L₀ to 4.4 years at the end.
+
+**Estimator.** With the laser left on, the motion depends on the sail's properties only through a₀ and L₀. In units of t₀ = √(2L₀/a₀), the speed β(t/t₀; β₀) is a universal function. We tabulate it once from the closed forms, with errors of about 2×10⁻⁴.
+
+- The prior over (ln a₀, ln L₀) is the §3.4 input uncertainty propagated to first order.
+- The posterior is evaluated on a 96×96 grid. Each record multiplies it by a Gaussian likelihood, and the grid re-centres on the posterior as the posterior narrows.
+- Predicted top speed and travel time are posterior quantiles.
+- The same algorithm runs in Python (`lightsail/assimilation.py`) and in the browser (`web/js/assimilation.js`); the two agree to < 10⁻⁶.
+
+**Findings** (Fig. 5):
+
+1. *The acceleration is learned first.* Inside L₀ the speed depends on a₀ alone. The a₀ uncertainty falls from ±8.9 % to ±1.4 % after one minute, and to ±0.6 % by the time data from L₀ arrive (161 s). L₀ stays at its prior ±12 %, so the travel-time interval barely moves: 4.8 → 3.5 yr.
+2. *L₀ is revealed only by the fall-off beyond L₀.* Once data from x > L₀ arrive, L₀ (the effective beam quality) is pinned down. The 90 % interval collapses to 0.15 yr within an hour and to 0.06 yr by the end, with a₀ and L₀ both known to about 0.5 %. This is the dynamical counterpart of §3.4, where beam quality dominated the prior variance.
+3. *The intervals are honest.* For 100 hidden sails drawn from the prior, the 90 % intervals for the top speed and the travel time each contained the truth 90 times.
+
+The same pipeline accepts real data. Records can be loaded as a CSV file (`seq, t_s, received_s, beta, sigma`, or `v_m_s` with sigma in m/s) or streamed as Server-Sent Events (`scripts/stream_server.py` serves a simulated or replayed stream at `http://localhost:8001/stream`).
+
 ## 4. The interactive simulation
 
 The browser simulation is a static page with no server, deployed with GitHub Pages. It runs the validated JavaScript engine:
 
 - **Interactive.** Every slider recomputes both trajectories in about 2 ms. The inputs are areal density, reflectivity, absorption, payload, sail size and shape, power, array size and shape, wavelength, beam quality, laser-off distance and target. A *Copy link* button stores the setup in the URL.
 - **Real-time animation.** Classical and relativistic sails race along a logarithmic distance track from Earth to the target, with landmarks, $L_0$, a beam cone that grows past the sail beyond $L_0$, and a beam-spot inset. Playback runs in true real time (×1, so the baseline reaches L₀ in 2.7 min), at fixed warps up to 10 yr/s, or in an automatic log-time mode that plays the whole 21-year trip in about 40 s. Live readouts include Earth and ship clocks, speed, γ, acceleration, captured beam fraction and the Doppler-shifted wavelength.
+- **Live data tab.** A SIMULATED stream of tracking records is assimilated in real time (§3.5). It shows the measured speed with the live fit, the narrowing travel-time prediction, the posterior over a₀ and L₀, and the latest records. You can draw a new hidden sail, reveal the truth, change the noise, replay a CSV file or connect to a live stream.
 - **Explore and Uncertainty tabs.** The Explore tab shows live parameter sweeps for σ, R, P and β(x). The Uncertainty tab runs an in-browser Monte Carlo (5,000 samples in about 0.15 s) with a tornado chart, variance shares and an editable uncertainty budget. Trajectories can be downloaded as CSV.
 
 ## 5. Limitations and possible extensions
@@ -216,9 +244,10 @@ The model is deliberately idealized:
 
 ```bash
 pip install -r requirements.txt
-python -m pytest                    # 78 validation tests (needs Node.js for the JS cross-check)
+python -m pytest                    # 91 validation tests (needs Node.js for the JS cross-check)
 python scripts/make_figures.py      # regenerates figures/ and figures/results.json
 python -m http.server -d web 8000   # open http://localhost:8000
+python scripts/stream_server.py     # SIMULATED tracking stream for the Live data tab (SSE, port 8001)
 ```
 
 ## References

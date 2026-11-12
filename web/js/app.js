@@ -2,49 +2,13 @@
 import * as ph from './physics.js';
 import { Plot, Tornado, cssVar, setupCanvas, withAlpha } from './charts.js';
 
-const { C, G_N, AU, LY, YEAR, DAY, CLASSICAL: CL, RELATIVISTIC: RE, MODELS } = ph;
+const { C, G_N, AU, LY, YEAR, CLASSICAL: CL, RELATIVISTIC: RE, MODELS } = ph;
 const NAME = { classical: 'Classical', relativistic: 'Relativistic' };
 const COLOR = { classical: '--classical', relativistic: '--relativistic' };
 const SPACE = { classical: '--space-classical', relativistic: '--space-relativistic' };
 
-// ============================================================================ formatting
-const SUPD = { '-': '⁻', 0: '⁰', 1: '¹', 2: '²', 3: '³', 4: '⁴', 5: '⁵', 6: '⁶', 7: '⁷', 8: '⁸', 9: '⁹' };
-const sup = (n) => String(n).split('').map((c) => SUPD[c]).join('');
-function num(v, n = 3) {
-  if (!Number.isFinite(v)) return v === Infinity ? '∞' : '—';
-  if (v === 0) return '0';
-  const a = Math.abs(v);
-  if (a >= 1e6 || a < 1e-3) {
-    const e = Math.floor(Math.log10(a));
-    return `${(v / 10 ** e).toFixed(n - 1)}×10${sup(e)}`;
-  }
-  return Number(v.toPrecision(n)).toLocaleString('en-US', { maximumFractionDigits: 8 });
-}
-function fmtDist(m) {
-  if (!Number.isFinite(m)) return '∞';
-  if (m < 1e3) return `${num(m)} m`;
-  if (m < 1e9) return `${num(m / 1e3)} km`;
-  if (m < 0.5 * AU) return `${num(m / 1e9)} million km`;
-  if (m < 0.03 * LY) return `${num(m / AU)} AU`;
-  return `${num(m / LY)} ly`;
-}
-function fmtTime(s) {
-  if (!Number.isFinite(s)) return '∞';
-  if (s < 1e-3) return `${num(s * 1e6)} µs`;
-  if (s < 1) return `${num(s * 1e3)} ms`;
-  if (s < 120) return `${num(s)} s`;
-  if (s < 2 * 3600) return `${num(s / 60)} min`;
-  if (s < 2 * DAY) return `${num(s / 3600)} h`;
-  if (s < YEAR) return `${num(s / DAY)} d`;
-  return `${num(s / YEAR)} yr`;
-}
-const pctc = (b) => `${num(100 * b, b < 0.001 ? 2 : 3)}% c`;
-
-const TIME_TICKS = [[1e-3, '1 ms'], [0.01, '10 ms'], [0.1, '0.1 s'], [1, '1 s'], [10, '10 s'], [60, '1 min'],
-  [3600, '1 h'], [DAY, '1 d'], [30 * DAY, '1 mo'], [YEAR, '1 yr'], [10 * YEAR, '10 yr'], [100 * YEAR, '100 yr'],
-  [1000 * YEAR, '1000 yr']];
-const DIST_TICKS = [[1, '1 m'], [1e3, '1 km'], [1e6, '1000 km'], [1e9, '10⁶ km'], [AU, '1 AU'], [100 * AU, '100 AU'],
-  [1e4 * AU, '10⁴ AU'], [LY, '1 ly'], [10 * LY, '10 ly']];
+import { num, fmtDist, fmtTime, pctc, TIME_TICKS, DIST_TICKS } from './format.js';
+import { initLive } from './live.js';
 
 // ============================================================================ state
 const ui = { illumStop: 10, emissivity: 1 };
@@ -56,6 +20,7 @@ let simT = 0, playing = true, speed = 'auto';
 const T_START = 0.05, AUTO_SECONDS = 40;
 let dirty = { explore: true, unc: true };
 let activeTab = 'sim';
+let live = null;
 
 const PRESETS = {
   'UCSB calculator defaults': {},
@@ -634,11 +599,13 @@ function showTab(name) {
   document.querySelectorAll('.tab-panel').forEach((p) => { p.hidden = p.id !== `tab-${name}`; });
   if (name === 'explore' && dirty.explore) requestAnimationFrame(renderExplore);
   if (name === 'unc' && dirty.unc) scheduleMC();
+  if (name === 'live') live.activate(); else live.deactivate();
 }
 
 function redrawAll() {
   for (const ch of [chartBeta, chartAcc, chSigma, chRefl, chPower, chDist, chMC]) ch.draw();
   tornadoChart.draw();
+  live.redraw();
 }
 
 function saveHash() {
@@ -707,6 +674,7 @@ function init() {
   chMC = new Plot(document.getElementById('chart-mc'), { xLabel: 'travel time to target [yr] (Earth frame)', yLabel: 'probability density [1/yr]', height: 240 });
   tornadoChart = new Tornado(document.getElementById('chart-tornado'), { xLabel: 'relativistic travel time [yr]', xFmt: (v) => `${v.toFixed(1)} yr` });
   buildSpec();
+  live = initLive({ getSidebarParams: () => ({ ...params }) });
   document.getElementById('mc-go').addEventListener('click', runMC);
   document.getElementById('mc-n').addEventListener('change', scheduleMC);
   document.getElementById('mc-seed').addEventListener('change', scheduleMC);
@@ -747,6 +715,7 @@ function init() {
   recompute();
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) setPlaying(false); else setPlaying(true);
   requestAnimationFrame(frame);
+  window.__live = live.state;
   window.__lightsail = { get params() { return params; }, get simT() { return simT; }, get summ() { return summ; }, set: (p) => { Object.assign(params, p); recompute(); } };
 }
 

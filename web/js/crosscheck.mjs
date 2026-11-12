@@ -4,8 +4,23 @@
 import { readFileSync } from 'node:fs';
 import * as ph from './physics.js';
 
-const cases = JSON.parse(readFileSync(process.argv[2], 'utf8'));
+const input = JSON.parse(readFileSync(process.argv[2], 'utf8'));
 const fix = (v) => (v === null ? Infinity : v);   // JSON has no Infinity
+if (input.mode === 'assimilate') {
+  const asm = await import('./assimilation.js');
+  const design = { ...ph.DEFAULTS, ...input.design, illuminationStop: Infinity };
+  const table = asm.sharedTable();
+  const A = new asm.Assimilator(design, ph.DEFAULT_SPEC, { table });
+  const res = { prior: A.prior, mu: A.mu, cov: A.cov, steps: [] };
+  for (const chunk of input.chunks) {
+    A.update(input.records.slice(chunk[0], chunk[1]));
+    res.steps.push(A.summary());
+  }
+  res.table = input.tablePoints.map(([t, a0, L0]) => table.beta(t, a0, L0));
+  process.stdout.write(JSON.stringify(res));
+  process.exit(0);
+}
+const cases = input;
 const out = cases.map((c) => {
   const p = { ...ph.DEFAULTS, ...c.params, illuminationStop: fix(c.params.illuminationStop) };
   const d = ph.derive(p);

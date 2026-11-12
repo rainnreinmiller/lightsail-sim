@@ -123,3 +123,41 @@ def test_elasticities_match(js_results):
                 py = elasticities(p, out, m, params=list(SENS_MAP))
                 for k_py, k_js in SENS_MAP.items():
                     assert py[k_py] == pytest.approx(r["models"][m][key][k_js], abs=2e-6), (m, out, k_py)
+
+
+def test_assimilation_matches_js(tmp_path):
+    """Same SIMULATED records -> same posterior in the browser engine and in Python."""
+    from lightsail import PRESETS
+    from lightsail.assimilation import Assimilator, UniversalTable, log_prior_moments
+    from lightsail.telemetry import sample_truth, simulated_stream
+
+    design = PRESETS["Kulkarni et al. 2018, Table 1 (1 g)"]
+    truth = sample_truth(design, seed=21)
+    recs = simulated_stream(truth, noise=0.002, seed=21)
+    chunks = [(0, 40), (40, 90), (90, 150), (150, len(recs))]
+    rng = np.random.default_rng(3)
+    pts = [(float(t), float(a), float(L)) for t, a, L in zip(
+        10 ** rng.uniform(-0.3, 9, 60), 10 ** rng.uniform(3.5, 6.5, 60), 10 ** rng.uniform(8.5, 10.5, 60))]
+    payload = {"mode": "assimilate", "design": to_js(design),
+               "records": [{"seq": r.seq, "t": r.t, "received_at": r.received_at, "beta": r.beta, "sigma": r.sigma} for r in recs],
+               "chunks": chunks, "tablePoints": pts}
+    f = tmp_path / "asm.json"
+    f.write_text(json.dumps(payload))
+    js = json.loads(subprocess.run([NODE, str(ROOT / "web/js/crosscheck.mjs"), str(f)],
+                                   capture_output=True, text=True, check=True).stdout)
+    table = UniversalTable.shared()
+    for (t, a, L), b in zip(pts, js["table"]):
+        assert rel(b, float(table.beta(t, a, L))) < 1e-9
+    mu, cov = log_prior_moments(design)
+    assert np.allclose(js["mu"], mu, rtol=1e-9)
+    assert np.allclose(js["cov"], cov, rtol=1e-6)
+    A = Assimilator(design)
+    for (lo, hi), step in zip(chunks, js["steps"]):
+        A.update(recs[lo:hi])
+        s = A.summary()
+        assert step["regrids"] == s["regrids"]
+        for key in ("a0", "L0", "beta_inf"):
+            for q in ("mean", "p5", "p50", "p95"):
+                assert rel(step[key][q], s[key][q]) < 1e-6, (key, q)
+        for q in ("p5", "p50", "p95"):
+            assert rel(step["t_target"][q], s["t_target"][q]) < 1e-6

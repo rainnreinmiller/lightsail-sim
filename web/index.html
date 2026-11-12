@@ -5,19 +5,20 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Lightsail Propulsion Simulator</title>
   <meta name="description" content="Interactive simulation of laser-propelled lightsails: classical vs relativistic motion, sail properties, and uncertainty. Based on the UCSB 1-D laser propulsion model (Lubin).">
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101318'/%3E%3Cpath d='M4 16 L22 9 L22 23 Z' fill='%239085e9' opacity='.55'/%3E%3Crect x='22' y='7' width='3' height='18' rx='1.5' fill='%23d95926'/%3E%3C/svg%3E">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23101318'/%3E%3Cpath d='M4 16 L22 9 L22 23 Z' fill='%23F7A3E4' opacity='.7'/%3E%3Crect x='22' y='7' width='3' height='18' rx='1.5' fill='%23F7A3E4'/%3E%3C/svg%3E">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
-      <h1>Lightsail Propulsion Simulator</h1>
+      <h1><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><path d="M2 16 L22 8 L22 24 Z" fill="currentColor" opacity=".45"/><rect x="22" y="6" width="3.5" height="20" rx="1.75" fill="currentColor"/></svg>Lightsail Propulsion Simulator</h1>
       <p>How do a sail's physical properties set its acceleration, speed and interstellar travel time? Idealized 1-D motion, classical vs relativistic.</p>
     </div>
     <nav class="tabs" role="tablist" aria-label="Sections">
       <button role="tab" aria-selected="true" data-tab="sim">Simulation</button>
       <button role="tab" aria-selected="false" data-tab="explore">Explore</button>
       <button role="tab" aria-selected="false" data-tab="unc">Uncertainty</button>
+      <button role="tab" aria-selected="false" data-tab="live">Live data <span class="tab-badge">SIM</span></button>
       <button role="tab" aria-selected="false" data-tab="model">Model &amp; assumptions</button>
     </nav>
     <button id="theme" class="ghost" type="button" aria-label="Toggle light or dark theme">◐ Theme</button>
@@ -142,6 +143,82 @@
         </div>
       </section>
 
+      <!-- ============================================================ LIVE DATA -->
+      <section class="tab-panel" id="tab-live" role="tabpanel" hidden>
+        <div class="live-banner">
+          <span class="sim-badge">SIMULATED DATA</span>
+          <p>No laser-driven lightsail has flown, so no real tracking data exist. This tab streams <b>simulated</b> ground-station measurements of a hidden “true” sail, drawn from the uncertainty ranges around Kulkarni, Lubin &amp; Zhang (2018), Table 1. The ground station reads the sail’s speed from the Doppler shift of the reflected laser light, λ<sub>r</sub>/λ = (1+β)/(1−β). Each record arrives after its light-travel delay. A Bayesian estimator updates the predicted top speed and travel time as records arrive. Real measurements in the same format can be loaded from a CSV file or a live stream.</p>
+        </div>
+        <div class="card live-controls">
+          <label>Data source
+            <select id="live-source">
+              <option value="sim" selected>Simulated tracking (built-in)</option>
+              <option value="csv">Replay a CSV file</option>
+              <option value="sse">Live stream (Server-Sent Events URL)</option>
+            </select>
+          </label>
+          <label>Design (prior centre)
+            <select id="live-design"></select>
+          </label>
+          <label data-live-src="sim"><span>Measurement noise σ<sub>β</sub> <span id="live-noise-val" class="mono"></span></span>
+            <input id="live-noise" type="range" min="0" max="1000" value="592" aria-label="Measurement noise">
+          </label>
+          <div class="live-buttons" data-live-src="sim">
+            <button id="live-newsail" class="ghost small" type="button">New hidden sail</button>
+            <label class="check"><input type="checkbox" id="live-reveal"> Reveal the true sail</label>
+          </div>
+          <div class="live-buttons" data-live-src="csv" hidden>
+            <input id="live-file" type="file" accept=".csv,text/csv" aria-label="Measurement CSV file">
+            <button id="live-sample" class="ghost small" type="button">Download a sample CSV</button>
+            <span class="muted small">Columns: seq, t_s, received_s, beta, sigma (or v_m_s with sigma in m/s)</span>
+          </div>
+          <div class="live-buttons" data-live-src="sse" hidden>
+            <input id="live-url" type="url" value="http://localhost:8001/stream" aria-label="Stream URL">
+            <button id="live-connect" class="primary small" type="button">Connect</button>
+            <span class="muted small">Run <code>python scripts/stream_server.py</code> for a local test stream.</span>
+          </div>
+        </div>
+        <div class="card stage">
+          <div class="stage-head">
+            <div class="phase"><span class="phase-dot"></span><span id="live-status">SIMULATED tracking stream</span></div>
+            <div class="clocks">
+              <div><span class="lbl">Earth time</span><span id="live-clock" class="val">0 s</span></div>
+              <div><span class="lbl">Playback</span><span id="live-warp" class="val">paused</span></div>
+            </div>
+          </div>
+          <canvas id="live-track" aria-label="Estimated position of the sail from the tracking data, with incoming measurements"></canvas>
+          <div class="transport">
+            <button id="live-play" class="primary" type="button">▶ Play</button>
+            <button id="live-restart" class="ghost" type="button">↺ Restart</button>
+            <label class="speed">Speed
+              <select id="live-speed">
+                <option value="auto" selected>Auto (log time, whole stream ≈ 45 s)</option>
+                <option value="1">Real time ×1</option>
+                <option value="10">×10</option>
+                <option value="100">×100</option>
+                <option value="1e4">×10⁴</option>
+                <option value="3.15576e7">×3×10⁷ (1 yr/s)</option>
+              </select>
+            </label>
+          </div>
+        </div>
+        <div id="live-tiles" class="tiles"></div>
+        <div class="grid2">
+          <div class="card"><h3>Measured speed and the model fit</h3>
+            <div class="legend"><span><i class="key measured round"></i>Measured (SIMULATED) ± 1σ</span><span><i class="key relativistic"></i>Fit: median and 90 %</span><span><i class="key prior"></i>Prior 90 %</span></div>
+            <div id="chart-live-beta"></div></div>
+          <div class="card"><h3>Predicted travel time as data arrive</h3>
+            <div class="legend"><span><i class="key relativistic"></i>Prediction: median and 90 %</span><span><i class="key prior"></i>Prior 90 %</span></div>
+            <div id="chart-live-funnel"></div>
+            <p class="muted small">Early data, from inside L₀, fix the acceleration within seconds. The top speed stays uncertain until the sail passes L₀, because only the fall-off beyond L₀ reveals L₀ (the beam quality).</p></div>
+        </div>
+        <div class="grid2">
+          <div class="card"><div class="card-head"><h3>Posterior over a₀ and L₀</h3><button id="live-zoom" class="ghost small" type="button" aria-pressed="false">Zoom to posterior</button></div><canvas id="live-heat" aria-label="Posterior probability over peak acceleration and L0"></canvas>
+            <p class="muted small">Tracking constrains only a₀ and L₀. The motion depends on the sail's properties only through these two numbers. Pink cells hold posterior probability; the dashed line is the prior 90 % region.</p></div>
+          <div class="card"><h3>Latest records</h3><table class="readout" id="live-records"></table></div>
+        </div>
+      </section>
+
       <!-- ============================================================ MODEL -->
       <section class="tab-panel prose" id="tab-model" role="tabpanel" hidden>
         <div class="card">
@@ -186,6 +263,7 @@
             <li><b>Our illustrative assumptions:</b> the uncertainty ranges, the beam-quality factor and the presets. <b>Standard reference values:</b> star and landmark distances and physical constants.</li>
           </ul>
           <p class="muted small">Lubin (2016) also gives an earlier first-order relativistic t(β) (Eqs. 22–23). This model uses the complete 2018 solution, as the UCSB relativistic calculator does.</p>
+          <p class="muted small"><b>Live data tab:</b> the measurement stream is SIMULATED. Each record is drawn from this model plus Gaussian noise, for a hidden sail sampled from the uncertainty ranges. No real lightsail tracking data exist.</p>
         </div>
         <div class="card">
           <h2>References</h2>

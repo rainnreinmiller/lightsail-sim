@@ -223,9 +223,12 @@ export function missionSummary(p, model) {
  * panel by panel (Gauss-Legendre in ln x), so the whole trajectory costs ~10^4 evaluations.
  */
 export function buildTrajectory(p, model, n = 1400) {
-  const d = derive(p);
+  return buildTrajectoryFromDerived(derive(p), p.targetDistance, model, n);
+}
+
+/** Same as buildTrajectory, from {a0, L0, xStop} directly (used by the live estimator). */
+export function buildTrajectoryFromDerived(d, X, model, n = 1400) {
   const { a0, L0, xStop } = d;
-  const X = p.targetDistance;
   const xmin = Math.min(L0, X) * 1e-9;
   const grid = new Set();
   for (let i = 0; i < n; i++) grid.add(xmin * Math.pow(X / xmin, i / (n - 1)));
