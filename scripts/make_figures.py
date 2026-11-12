@@ -6,6 +6,7 @@ Fig. 1  areal density   -> acceleration and limiting speed (optimal sail)
 Fig. 2  reflectivity    -> momentum transfer, limiting speed and travel time
 Fig. 3  classical vs relativistic motion (ODE trajectories + universal correction curve)
 Fig. 4  uncertainty     -> tornado sensitivity + Monte Carlo travel-time distributions
+Fig. 5  live data       -> Bayesian assimilation of a SIMULATED tracking stream
 """
 
 from __future__ import annotations
@@ -309,6 +310,81 @@ def fig_uncertainty(results):
                        "spec": {k: list(v) for k, v in DEFAULT_SPEC.items()}}
 
 
+# ----------------------------------------------------------------------------- Fig 5
+def fig_assimilation(results):
+    """Live Bayesian assimilation of a SIMULATED Doppler tracking stream (no real data exist)."""
+    from lightsail import PRESETS
+    from lightsail.assimilation import Assimilator
+    from lightsail.telemetry import sample_truth, simulated_stream, state_at_times
+    MEASURED, PRIOR = "#ab4999", "#898781"
+    design = PRESETS["Kulkarni et al. 2018, Table 1 (1 g)"]
+    truth = sample_truth(design, seed=1)
+    recs = simulated_stream(truth, noise=0.002, seed=1)
+    A = Assimilator(design)
+    tgrid = np.geomspace(0.5, 2e9, 160)
+    prior_band = A.predictive_band(tgrid)
+    hist = []
+    for r in recs:
+        A.update([r])
+        s = A.summary()
+        hist.append((r.received_at, s["t_target"]["p5"], s["t_target"]["p50"], s["t_target"]["p95"]))
+    post_band = A.predictive_band(tgrid)
+    hist = np.array(hist)
+    t_true = float(ph.time_to_distance(truth.target_distance, truth.a0, truth.L0)[0])
+    tL0 = float(ph.time_to_distance(truth.L0, truth.a0, truth.L0)[0])
+    _, b_true = state_at_times(truth, tgrid)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10.5, 4.1), constrained_layout=True)
+    ax1.fill_between(tgrid, prior_band[:, 0], prior_band[:, 2], color=PRIOR, alpha=0.18, lw=0, label="prior 90 %")
+    ax1.fill_between(tgrid, post_band[:, 0], post_band[:, 2], color=MODEL_COLOR[RELATIVISTIC], alpha=0.25, lw=0)
+    ax1.plot(tgrid, post_band[:, 1], color=MODEL_COLOR[RELATIVISTIC], label="fit to all records (median, 90 %)")
+    ax1.plot(tgrid, b_true, color=INK, lw=0.9, label="hidden true sail")
+    t_m = np.array([r.t for r in recs]); b_m = np.array([r.beta for r in recs])
+    ax1.errorbar(t_m, b_m, yerr=0.002, fmt="o", ms=2.6, color=MEASURED, ecolor=MEASURED, elinewidth=0.6,
+                 alpha=0.85, label="SIMULATED measurements ± 1σ", zorder=4)
+    ax1.axvline(tL0, color=MEASURED, lw=0.8)
+    ax1.text(tL0 * 1.15, 0.02, "sail passes L₀", color=INK2, fontsize=8.5)
+    ax1.set_xscale("log")
+    ax1.set(xlabel="Event time at the sail t  [s]", ylabel="Speed β = v/c", xlim=(0.5, 2e9), ylim=(-0.01, 0.235),
+            title="Simulated Doppler tracking stream")
+    ax1.legend(loc="lower right", fontsize=8)
+    panel_letter(ax1, "a")
+
+    yr = YEAR
+    pr = A.prior["t_target"]
+    ax2.axhspan(pr["p5"] / yr, pr["p95"] / yr, color=PRIOR, alpha=0.18, lw=0, label="prior 90 %")
+    ax2.fill_between(hist[:, 0], hist[:, 1] / yr, hist[:, 3] / yr, color=MODEL_COLOR[RELATIVISTIC], alpha=0.25, lw=0, step="post")
+    ax2.plot(hist[:, 0], hist[:, 2] / yr, color=MODEL_COLOR[RELATIVISTIC], drawstyle="steps-post", label="prediction (median, 90 %)")
+    ax2.axhline(t_true / yr, color=INK, lw=0.9, label="hidden truth")
+    rL0 = tL0 + truth.L0 / C
+    ax2.axvline(rL0, color=MEASURED, lw=0.8)
+    ax2.text(rL0 * 1.15, pr["p95"] / yr + 0.15, "data from beyond L₀\nstart arriving", color=INK2, fontsize=8.5, va="bottom")
+    ax2.set_xscale("log")
+    ax2.set(xlabel="Time the data reach Earth  [s]", ylabel="Predicted travel time to α Cen  [yr]",
+            title="The prediction sharpens as data arrive", xlim=(0.8, hist[-1, 0] * 1.5),
+            ylim=(pr["p5"] / yr - 1.9, pr["p95"] / yr + 1.4))
+    ax2.legend(loc="lower right", fontsize=8, ncol=3)
+    panel_letter(ax2, "b")
+    save(fig, "fig5_live_assimilation")
+
+    def width_at(t):
+        i = np.searchsorted(hist[:, 0], t) - 1
+        return float((hist[i, 3] - hist[i, 1]) / yr) if i >= 0 else float((pr["p95"] - pr["p5"]) / yr)
+    s = A.summary()
+    results["fig5"] = {
+        "simulated": True, "n_records": len(recs), "noise_beta": 0.002,
+        "truth": {"a0": truth.a0, "L0": truth.L0, "t_target_yr": t_true / yr},
+        "prior_t90_width_yr": float((pr["p95"] - pr["p5"]) / yr),
+        "width_at_L0_reception_yr": width_at(rL0),
+        "width_after_1h_yr": width_at(3600.0), "width_after_1d_yr": width_at(86400.0),
+        "final": {"t_target_yr": {k: v / yr for k, v in s["t_target"].items()},
+                  "a0_rel_sd": s["a0"]["sd"] / s["a0"]["mean"], "L0_rel_sd": s["L0"]["sd"] / s["L0"]["mean"],
+                  "prior_a0_rel_sd": A.prior["a0"]["sd"] / A.prior["a0"]["mean"],
+                  "prior_L0_rel_sd": A.prior["L0"]["sd"] / A.prior["L0"]["mean"]},
+        "reception_time_of_L0_s": rL0,
+    }
+
+
 def main():
     results = {"baseline": baseline().summary(),
                "mission": {m: ph.mission_summary(baseline(), m) for m in MODELS}}
@@ -320,6 +396,7 @@ def main():
     fig_reflectivity(results)
     fig_classical_vs_relativistic(results)
     fig_uncertainty(results)
+    fig_assimilation(results)
 
     def conv(o):
         if isinstance(o, dict):

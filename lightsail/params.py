@@ -176,4 +176,6 @@ PRESETS = {
     "Thicker sail (10 g/m^2)": baseline().with_(thickness=10e-6),
     "Lossy sail (R = 0.6)": baseline().with_(reflectivity=0.6),
     "Gram-scale, 1 TW-class beam": baseline().with_(power=1000 * GW),
+    # Kulkarni, Lubin & Zhang (2018), Table 1, first row: 10 km square array, 1064 nm, 1 um x 1.4 g/cm^3 sail
+    "Kulkarni et al. 2018, Table 1 (1 g)": baseline().with_(circular_array=False, wavelength=1064e-9, density=1400.0),
 }

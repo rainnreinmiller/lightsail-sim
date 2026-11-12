@@ -18,10 +18,12 @@ The scope is idealized spacecraft motion. The laser (power, array size, waveleng
 | Path | What it is |
 |---|---|
 | `lightsail/` | Python reference implementation (NumPy, SciPy): parameters, closed-form physics, `solve_ivp` integrator, sensitivity and uncertainty analysis |
-| `tests/` | 48 validation tests: UCSB calculator reproduction, closed form vs ODE, physical limits, JS ↔ Python cross-check |
+| `tests/` | 91 validation tests: UCSB calculator reproduction, Lubin (2016) and Kulkarni et al. (2018) equations and tables, closed form vs ODE, physical limits, JS ↔ Python cross-check |
 | `scripts/make_figures.py` | Generates the four scientific figures (Matplotlib) and `figures/results.json` |
 | `figures/` | Fig. 1–4 as 300-dpi PNG and vector PDF |
-| `web/` | The browser simulation: `index.html`, `js/physics.js` (engine), `js/app.js` (UI and animation), `js/charts.js` |
+| `lightsail/telemetry.py`, `lightsail/assimilation.py` | SIMULATED tracking-measurement stream and the live Bayesian estimator |
+| `scripts/stream_server.py` | Serves a simulated (or CSV-replayed) measurement stream as Server-Sent Events |
+| `web/` | The browser simulation: `index.html`, `js/physics.js` (engine), `js/assimilation.js` (live estimator), `js/app.js` and `js/live.js` (UI and animation), `js/charts.js` |
 | `report/` | Short report (`REPORT.md` → `report.pdf`) covering assumptions, methods, validation and findings |
 | `.github/workflows/pages.yml` | Runs the tests, then deploys the simulation to GitHub Pages |
 
@@ -37,7 +39,29 @@ The simulation is a single static web page with no server.
 * **Live readouts.** Earth and ship clocks, distance, speed, γ, acceleration felt, beam fraction captured, and the Doppler-shifted laser wavelength.
 * **Explore tab.** Live sweeps of limiting speed vs σ, travel time vs R, limiting speed vs P, and β(x).
 * **Uncertainty tab.** An in-browser Monte Carlo with an editable uncertainty budget, a tornado chart, variance shares and first-order propagation.
+* **Live data tab (SIMULATED).** A stream of ground-station Doppler measurements of a hidden sail is processed in real time. A Bayesian estimator updates the predicted top speed and arrival time as each record arrives (see below).
 * **Sharing and export.** The *Copy link* button stores the current setup in the URL. Trajectories can be downloaded as CSV.
+
+## Live data: streaming measurements
+
+No laser-driven lightsail has flown, so **no real tracking data exist**. The Live data tab and `lightsail/telemetry.py` therefore generate a **simulated** stream. A hidden "true" sail is drawn from the uncertainty ranges around the Kulkarni, Lubin & Zhang (2018) Table 1 design. A ground station measures its speed from the Doppler shift of the reflected laser light, λ_r/λ = (1+β)/(1−β), and each record reaches Earth after its light-travel delay.
+
+`lightsail/assimilation.py` (and its JavaScript port) updates a Bayesian posterior over the two quantities that tracking can measure: the peak acceleration a₀ and the diffraction distance L₀. From that posterior it predicts the top speed and travel time.
+
+In a typical run:
+* Early data fix a₀ within minutes.
+* L₀, and with it the top speed, is only revealed once data from beyond L₀ arrive.
+* The 90 % travel-time interval shrinks from 4.8 yr to 0.06 yr.
+* Over 100 simulated sails, the 90 % intervals contained the truth 90 % of the time.
+
+Real measurements can be processed the same way:
+
+* **CSV file:** `seq,t_s,received_s,beta,sigma`. You can use `v_m_s` instead of `beta`, with `sigma` then in m/s. `seq` and `received_s` are optional, and lines starting with `#` are comments.
+* **Live stream:** Server-Sent Events, one JSON record per message: `{"seq", "t", "received_at", "beta", "sigma"}`. For a local test stream, run the command below and press *Connect* in the Live data tab.
+
+```bash
+python scripts/stream_server.py
+```
 
 ## Physics in one paragraph
 
@@ -67,12 +91,24 @@ The relativistic correction depends only on β₀ = √(2a₀L₀)/c. Travel tim
 * **Reflectivity.** R = 0 → 1 gains √2 in speed (classical) or ×1.35 (relativistic) and cuts the trip by 26–29 %. Above R ≈ 0.99 the speed barely changes, but the sail temperature falls steeply. Reflectivity then matters for the sail's survival, not its speed.
 * **Relativity.** The correction to v∞ is about 1 % at β₀ = 0.01, 9 % at 0.1, 14.5 % for the defaults and 35 % at 0.5. At 10 TW the classical model predicts 2.4c.
 * **Uncertainty.** The beam's diffraction factor dominates the variance (64 %). Among the sail properties, areal density and payload mass contribute 12 % each and reflectivity only 0.3 %. Relativity lowers every sensitivity by a factor of about 0.85.
-* **Calculator check.** All classical outputs match the UCSB classical calculator exactly, and the relativistic speeds match its lookup tables. The relativistic calculator's *time to L₀* (180 s) is about 12 % longer than direct integration gives (161 s).
+* **Calculator and paper checks.** All classical outputs match the UCSB classical calculator exactly, and the relativistic speeds match its lookup tables. The equations are those of Lubin (2016) and Kulkarni, Lubin & Zhang (2018), and the model reproduces all 13 mission cases in Tables 1–2 of the 2018 paper. The relativistic calculator's *time to L₀* (180 s) is about 12 % longer than direct integration gives (161 s). The 2018 paper's own Table 1 supports the integrated value: 164 s, against our 163 s.
+
+## Where the numbers come from
+
+The simulator uses no measured data. It computes everything from equations and input parameters.
+
+* **Default inputs and the classical formulas** come from the JavaScript source of the two UCSB calculators. The formulas match Lubin (2016), Eqs. 1–13.
+* **The relativistic equation of motion** is Kulkarni et al. (2018), Eq. 10. The closed-form speed at any distance, the ship time and the quadrature were derived for this project. They are checked against Eqs. 11 and 27 and Tables 1–2 of that paper, and against the relativistic calculator.
+* **Our own illustrative assumptions:** the uncertainty ranges, the beam-quality factor and the presets.
+* **Standard reference values:** star and landmark distances and physical constants.
+
+Report §1.1 has the full table.
 
 ![Fig. 1](figures/fig1_areal_density.png)
 ![Fig. 2](figures/fig2_reflectivity.png)
 ![Fig. 3](figures/fig3_classical_vs_relativistic.png)
 ![Fig. 4](figures/fig4_uncertainty.png)
+![Fig. 5](figures/fig5_live_assimilation.png)
 
 ## Running it
 
@@ -119,5 +155,5 @@ Pushing to `main` runs the test suite and deploys the simulation, figures and re
 ## References
 
 1. P. Lubin, “A Roadmap to Interstellar Flight,” *JBIS* 69, 40–72 (2016), arXiv:1604.01356.
-2. N. Kulkarni, P. Lubin, Q. Zhang, “Relativistic Spacecraft Propelled by Directed Energy,” *AJ* 155, 155 (2018), arXiv:1710.10732.
+2. N. Kulkarni, P. Lubin, Q. Zhang, “Relativistic Spacecraft Propelled by Directed Energy,” *The Astronomical Journal* (2018), doi:10.3847/1538-3881/aaafd2, arXiv:1710.10732.
 3. UCSB Experimental Cosmology Group, Laser Propulsion Classical 1D and Relativistic 1D calculators (deepspace.ucsb.edu).

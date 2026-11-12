@@ -165,7 +165,11 @@ export class Plot {
       ctx.strokeStyle = cssVar(hl.color || '--ink'); ctx.lineWidth = 1;
       const y = Math.round(Y(hl.y)) + 0.5;
       ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
-      if (hl.label) { ctx.fillStyle = ink2; ctx.textAlign = 'left'; ctx.textBaseline = 'bottom'; ctx.fillText(hl.label, pad.l + 4, y - 3); }
+      if (hl.label) {
+        ctx.fillStyle = ink2; ctx.textBaseline = 'bottom';
+        ctx.textAlign = hl.align === 'right' ? 'right' : 'left';
+        ctx.fillText(hl.label, hl.align === 'right' ? w - pad.r - 4 : pad.l + 4, y - 3);
+      }
     }
     for (const vl of d.vlines) {
       if (vl.x < x0 || vl.x > x1) continue;
@@ -194,7 +198,7 @@ export class Plot {
       ctx.beginPath(); ctx.moveTo(x, pad.t); ctx.lineTo(x, h - pad.b); ctx.stroke();
       ctx.globalAlpha = 1;
       for (const s of d.series) {
-        if (s.kind === 'step' || s.noCursor) continue;
+        if (s.kind === 'step' || s.kind === 'band' || s.kind === 'points' || s.noCursor) continue;
         const v = interp(s, this.cursorX);
         if (v != null && v >= y0 && v <= y1) dot(ctx, x, Y(v), cssVar(s.color), surface, 4.5);
       }
@@ -208,10 +212,29 @@ export class Plot {
       const rows = [];
       for (const s of d.series) {
         if (s.noTip) continue;
+        const key = `<span class="key" style="background:${cssVar(s.color)}"></span>`;
+        if (s.kind === 'band') {
+          const lo = interp({ x: s.x, y: s.lo }, xv), hi = interp({ x: s.x, y: s.hi }, xv);
+          if (lo == null || hi == null) continue;
+          const f = s.fmt || o.yFmt;
+          rows.push(`<div class="tip-row">${key}${s.name}<b>${f(lo)} – ${f(hi)}</b></div>`);
+          continue;
+        }
+        if (s.kind === 'points') {
+          let best = -1, bd = 10;
+          for (let i = 0; i < s.x.length; i++) {
+            const dpx = Math.abs(X(s.x[i]) - this.hoverPx[0]);
+            if (dpx < bd) { bd = dpx; best = i; }
+          }
+          if (best < 0) continue;
+          const f = s.fmt || o.yFmt;
+          rows.push(`<div class="tip-row">${key}${s.name}<b>${f(s.y[best])}${s.err ? ` ± ${f(s.err[best])}` : ''}</b></div>`);
+          continue;
+        }
         const v = s.kind === 'step' ? stepValue(s, xv) : interp(s, xv);
         if (v == null) continue;
         if (s.kind !== 'step' && v >= y0 && v <= y1) dot(ctx, x, Y(v), cssVar(s.color), surface, 4);
-        rows.push(`<div class="tip-row"><span class="key" style="background:${cssVar(s.color)}"></span>${s.name}<b>${(s.fmt || o.yFmt)(v)}</b></div>`);
+        rows.push(`<div class="tip-row">${key}${s.name}<b>${(s.fmt || o.yFmt)(v)}</b></div>`);
       }
       this.tip.innerHTML = `<div class="tip-head">${o.xFmt(xv)}</div>${rows.join('')}`;
       this.tip.hidden = false;
@@ -228,6 +251,35 @@ export class Plot {
     const col = cssVar(s.color);
     const { xLog, yLog } = this.opts;
     const ok = (xv, yv) => Number.isFinite(xv) && Number.isFinite(yv) && (!xLog || xv > 0) && (!yLog || yv > 0);
+    if (s.kind === 'band') {
+      // filled range between s.lo and s.hi (a wash, never a saturated block)
+      const idx = [];
+      for (let i = 0; i < s.x.length; i++) if (ok(s.x[i], s.lo[i]) && ok(s.x[i], s.hi[i])) idx.push(i);
+      if (idx.length < 2) return;
+      ctx.beginPath();
+      idx.forEach((i, j) => (j ? ctx.lineTo(X(s.x[i]), Y(s.hi[i])) : ctx.moveTo(X(s.x[i]), Y(s.hi[i]))));
+      for (let j = idx.length - 1; j >= 0; j--) ctx.lineTo(X(s.x[idx[j]]), Y(s.lo[idx[j]]));
+      ctx.closePath();
+      ctx.fillStyle = withAlpha(col, s.alpha ?? 0.16);
+      ctx.fill();
+      return;
+    }
+    if (s.kind === 'points') {
+      const ring = cssVar('--surface');
+      ctx.strokeStyle = withAlpha(col, 0.55); ctx.lineWidth = 1;
+      for (let i = 0; i < s.x.length; i++) {
+        if (!ok(s.x[i], s.y[i]) || !s.err) continue;
+        const px = X(s.x[i]);
+        ctx.beginPath(); ctx.moveTo(px, Y(s.y[i] - s.err[i])); ctx.lineTo(px, Y(s.y[i] + s.err[i])); ctx.stroke();
+      }
+      for (let i = 0; i < s.x.length; i++) {
+        if (!ok(s.x[i], s.y[i])) continue;
+        const r = s.r || 3;
+        ctx.beginPath(); ctx.arc(X(s.x[i]), Y(s.y[i]), r + 1.5, 0, 2 * Math.PI); ctx.fillStyle = ring; ctx.fill();
+        ctx.beginPath(); ctx.arc(X(s.x[i]), Y(s.y[i]), r, 0, 2 * Math.PI); ctx.fillStyle = col; ctx.fill();
+      }
+      return;
+    }
     if (s.kind === 'step') {
       // histogram: s.x are bin edges (n+1), s.y bin heights (n)
       ctx.beginPath();
