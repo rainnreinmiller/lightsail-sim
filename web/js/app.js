@@ -65,6 +65,7 @@ const PRESETS = {
   'Laser switched off at L₀': { illuminationStop: 1 },
   '1 TW beam': { power: 1e12 },
   '10 TW beam (classical model breaks)': { power: 1e13 },
+  'Kulkarni et al. 2018, Table 1 (1 g)': { circularArray: false, wavelength: 1064e-9, arealDensity: 1.4e-3 },
 };
 
 // ============================================================================ controls

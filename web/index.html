@@ -170,15 +170,28 @@
             <li>Classical outputs reproduce the UCSB classical calculator to machine precision: sail mass, L₀, acceleration, time to L₀, speed at L₀, limiting speed, travel time and temperature.</li>
             <li>Relativistic speeds match the UCSB relativistic calculator's lookup tables to their tabulated precision. Its limiting-speed formula is algebraically identical to the cubic above.</li>
             <li>The closed forms agree with direct numerical integration (SciPy <code>solve_ivp</code>, DOP853, rtol 10⁻¹¹) to about 10⁻¹¹. This JavaScript engine agrees with the Python reference to better than 10⁻¹⁰.</li>
-            <li>One discrepancy: the relativistic calculator's <em>time to L₀</em> expression equals the integrated value multiplied by β<sub>classical</sub>/β<sub>relativistic</sub>. That makes it about 12 % too long for the default inputs (180 s vs 161 s).</li>
+            <li>The model reproduces all 13 mission cases in Tables 1–2 of Kulkarni, Lubin &amp; Zhang (2018). For example, their 1 g case lists t₀ = 164 s, β₀ = 0.15 and β<sub>max</sub> = 0.21; this model gives 163 s, 0.153 and 0.207. Use the preset <em>Kulkarni et al. 2018, Table 1 (1 g)</em> to see it.</li>
+            <li>One discrepancy: the relativistic calculator's <em>time to L₀</em> evaluates the paper's Eq. 11, but converts t<sub>rel</sub> = mc²/P using the relativistic β instead of the classical β₀. The result is 12 % too long for the default inputs (180 s vs 161 s). The paper's own Table 1 agrees with the integrated value.</li>
           </ul>
           <p>Python reference, tests, figures and report: <a id="repo-link" href="https://github.com/rainnreinmiller/lightsail-sim">github.com/rainnreinmiller/lightsail-sim</a> · <a href="report/report.pdf">Report (PDF)</a></p>
+        </div>
+        <div class="card">
+          <h2>Where the numbers come from</h2>
+          <p>The simulator uses no measured data. Every number is computed from the equations above and the input parameters, which come from these sources:</p>
+          <ul>
+            <li><b>UCSB calculators (Lubin group):</b> the default inputs (100 GW, 10 km circular array, 1060 nm, 1 g payload, 1 µm × 1 g/cm³ sail, R = A = 1, 4.37 ly target), the classical formulas and the sail temperature. These were read from the JavaScript source of both calculator pages.</li>
+            <li><b>Lubin (2016), Eqs. 1–13:</b> the classical model, which the calculator implements. It covers the force (1+ε<sub>r</sub>)P/c, sail mass ξD²hρ, L₀ = dD/(2λα), v₀, v∞ = √2·v₀, the optimal sail m<sub>sail</sub> = m₀, and α = 1 or 1.22.</li>
+            <li><b>Kulkarni, Lubin &amp; Zhang (2018):</b> the relativistic equation of motion (Eq. 10) and the diffraction model (Eqs. 21–23). Its Eqs. 11 and 27 and Tables 1–2 serve as checks.</li>
+            <li><b>Derived for this project:</b> the closed-form relativistic speed at any distance, the ship proper time, the far-field quadrature, and the generalization to R &lt; 1 (absorbed light re-radiated isotropically in the sail frame).</li>
+            <li><b>Our illustrative assumptions:</b> the uncertainty ranges, the beam-quality factor and the presets. <b>Standard reference values:</b> star and landmark distances and physical constants.</li>
+          </ul>
+          <p class="muted small">Lubin (2016) also gives an earlier first-order relativistic t(β) (Eqs. 22–23). This model uses the complete 2018 solution, as the UCSB relativistic calculator does.</p>
         </div>
         <div class="card">
           <h2>References</h2>
           <ul class="refs">
             <li>P. Lubin, “A Roadmap to Interstellar Flight,” <i>JBIS</i> 69, 40–72 (2016), arXiv:1604.01356.</li>
-            <li>N. Kulkarni, P. Lubin, Q. Zhang, “Relativistic Spacecraft Propelled by Directed Energy,” <i>AJ</i> 155, 155 (2018), arXiv:1710.10732.</li>
+            <li>N. Kulkarni, P. Lubin, Q. Zhang, “Relativistic Spacecraft Propelled by Directed Energy,” <i>The Astronomical Journal</i> (2018), doi:10.3847/1538-3881/aaafd2, arXiv:1710.10732.</li>
             <li>UCSB Experimental Cosmology Group, Laser Propulsion Classical 1D and Relativistic 1D calculators, deepspace.ucsb.edu (2023).</li>
           </ul>
         </div>

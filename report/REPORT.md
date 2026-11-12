@@ -17,7 +17,7 @@ Key findings for the UCSB calculator's default inputs (100 GW, 10 km array, 1.06
 2. **Reflectivity R.** The momentum per photon is $\eta = 2R + (1-R)A$, so classically $v_\infty \propto \sqrt{1+R}$. A perfect reflector is 41 % faster than a perfect absorber (classical) and 35 % faster (relativistic). That shortens the trip to α Cen from 28.8 to 21.3 yr. Near R = 1, however, speed barely depends on R while the absorbed power, and so the sail temperature, depends on it strongly. Survival, not momentum, sets the reflectivity requirement.
 3. **Classical vs relativistic.** The relativistic correction depends on one number, $\beta_0 = \sqrt{2a_0L_0}/c$, the classical speed at $L_0$. For the defaults ($\beta_0 = 0.169$) relativity lowers $v_\infty$ from 24.0 % c to 20.5 % c (−14.5 %) and lengthens the trip from 18.2 to 21.3 yr (+17 %). At 10 TW the classical model predicts 2.4c, while the relativistic one gives 0.78c.
 4. **Uncertainty.** Plausible input spreads (Monte Carlo, N = 10⁵) give a relativistic travel time of 23.6 yr (90 % interval 21.2–26.0 yr). The beam's diffraction factor carries 64 % of the variance. Among the sail properties, areal density and payload mass contribute 12 % each and reflectivity only 0.3 %. The sail size has zero sensitivity at the optimum. Relativity *reduces* the sensitivity to every input by a factor of 0.85.
-5. **Calculator check.** Our outputs reproduce the UCSB classical calculator exactly and the relativistic calculator's speeds to its table precision. We found one inconsistency: the relativistic calculator's *time to L₀* is 180 s, but direct integration gives 161 s. Its formula carries an extra factor $\beta_\text{classical}/\beta_\text{relativistic}$.
+5. **Checks against the calculators and papers.** Our outputs reproduce the UCSB classical calculator exactly and the relativistic calculator's speeds to its table precision. Our equations are those of Lubin (2016) and Kulkarni, Lubin & Zhang (2018), and the model reproduces all 13 mission cases in Tables 1–2 of the 2018 paper. We found one inconsistency: the relativistic calculator's *time to L₀* is 180 s, but direct integration gives 161 s. The 2018 paper's own table supports the integrated value (164 s vs. our 163 s for its 1 g case).
 
 ## 1. Model and assumptions
 
@@ -45,6 +45,8 @@ $$
 
 The relativistic cubic is solved analytically, in a form that keeps full precision when β ≪ 1. Writing $q = 6a_0W/c^2 = 3\beta_0^2\,W/L_0$ shows that the ratio of relativistic to classical speed depends only on $\beta_0$. Inside $L_0$ the Earth time and ship proper time are also closed form: $t = \tfrac{c}{a_0}\tfrac{\mathcal D^3+3\mathcal D-4}{6}$ and $\tau = \tfrac{c}{a_0}\tfrac{\mathcal D^2-1}{2}$. Beyond $L_0$ we use $t = \int dx/v$ and $\tau=\int dx/(\gamma v)$: closed form classically, and Gauss–Legendre quadrature in $\ln x$ relativistically.
 
+**Relation to the papers.** For a perfect reflector ($\eta = 2$), the relativistic equation of motion above is Eq. 10 of Kulkarni, Lubin & Zhang (2018). Their Eq. 11 for the time inside $L_0$, $t = \tfrac{t_\text{rel}}{6}\big[\tfrac{(1+\beta)(2-\beta)\gamma}{1-\beta} - 2\big]$ with $t_\text{rel} = mc^2/P$, is algebraically identical to our $t$ above. Our cubic gives the speed at any distance; at $x = L_0$ it reduces to their Eq. 27. Lubin (2016), Eqs. 22–23, gives an earlier *first-order* relativistic expression for $t(\beta)$ and refers to a more complete solution elsewhere. We use the 2018 solution, which the UCSB relativistic calculator also follows. The two expressions agree to first order in β, but at 0.2c the 2016 expression gives 0.103 $t_E$ against 0.126 $t_E$.
+
 **Assumptions.**
 
 - One-dimensional motion at normal incidence. The sail is flat and rigid and rides the beam stably (no tilt, spin or deformation).
@@ -55,7 +57,23 @@ The relativistic cubic is solved analytically, in a form that keeps full precisi
 
 The laser is an idealized, fixed input. Hardware design and beam delivery are outside the scope of this study.
 
-**Baseline** (UCSB calculator defaults): P = 100 GW; d = 10 km, circular (α = 1.22); λ = 1060 nm; m₀ = 1 g; h = 1 µm and ρ = 1 g/cm³, so σ = 1 g/m²; optimal square sail, D = 1 m (1 g); R = 1, A = 1; target 4.37 ly (α Cen A/B).
+**Baseline** (UCSB calculator defaults): P = 100 GW; d = 10 km, circular (α = 1.22); λ = 1060 nm; m₀ = 1 g; h = 1 µm and ρ = 1 g/cm³, so σ = 1 g/m²; optimal square sail, D = 1 m (1 g); R = 1, A = 1; target 4.37 ly (α Cen A/B). The papers' baseline differs slightly: a square array (α = 1), 1064 nm, and ρ = 1.4 g/cm³ (σ = 1.4 g/m²). The simulator offers it as the preset *Kulkarni et al. 2018, Table 1 (1 g)*.
+
+### 1.1 Where the numbers come from
+
+The simulator uses no measured data. Every output is computed from the equations above and the input parameters. The inputs and equations come from the following sources.
+
+| Item | Source | Code |
+|---|---|---|
+| Default inputs (power, array, wavelength, payload, sail thickness and density, R = A = 1, 4.37 ly target) | UCSB Laser Propulsion calculators (JavaScript source of both pages) | `lightsail/params.py`, `web/js/physics.js` |
+| Sail mass ξD²hρ, force (1+ε<sub>r</sub>)P₀/c, generalized to ηP₀/c with η = 2R+(1−R)A as in the calculator; a₀, L₀, t₀, v₀, v∞ = √2·v₀, optimal sail m<sub>sail</sub> = m₀, beam efficiency | Lubin (2016) Eqs. 1–13; UCSB classical calculator | `params.py`, `physics.py` |
+| α = 1 (square array) or 1.22 (circular); ξ = 1 or π/4 | Lubin (2016) §2; Kulkarni et al. (2018) Eq. 21 | `constants.py` |
+| Beam capture f(x) = (L₀/x)² beyond L₀ | Lubin (2016) §2; Kulkarni et al. (2018) Eqs. 22–23 | `physics.py` |
+| Relativistic equation of motion with the (1−β)/(1+β) Doppler factor | Kulkarni et al. (2018) Eq. 10. For R < 1 we scale the force by η/2, treating absorbed light as re-radiated isotropically in the sail frame (our assumption). | `physics.py`, `simulate.py` |
+| Closed-form speed at any distance (cubic in 𝒟), ship proper time, far-field quadrature | Derived here. Checked against Kulkarni et al. Eqs. 11 and 27, their Tables 1–2, and the relativistic calculator. | `physics.py` |
+| Sail equilibrium temperature | UCSB calculators | `params.py` |
+| Uncertainty ranges, beam-quality factor, presets | Our illustrative assumptions | `uncertainty.py`, `web/js/app.js` |
+| Proxima Centauri (4.2465 ly), Barnard's Star (5.96 ly), landmark distances, physical constants | Standard reference values | `constants.py` |
 
 ## 2. Numerical methods and validation
 
@@ -66,7 +84,7 @@ The laser is an idealized, fixed input. Hardware design and beam delivery are ou
 | `scipy.integrate.solve_ivp` (DOP853, rtol 10⁻¹¹, events at L₀, laser-off, target) | independent check by direct integration of the ODE |
 | JavaScript port (`web/js/physics.js`) | powers the browser simulation; cross-checked against Python under Node |
 
-The test suite has 48 tests (`pytest`). It verifies the following:
+The test suite has 78 tests (`pytest`). It verifies the following:
 
 - The closed forms match the ODE to < 10⁻⁸ in β, t, τ and acceleration. The observed error is about 10⁻¹¹.
 - The relativistic model reduces to the classical one at low speed and never reaches c.
@@ -74,6 +92,7 @@ The test suite has 48 tests (`pytest`). It verifies the following:
 - The work–energy theorem holds.
 - The optimal sail maximizes $v_\infty$.
 - The JS engine matches Python to < 10⁻¹⁰ on 18 random and edge-case parameter sets.
+- The model matches the equations of Lubin (2016) and Kulkarni et al. (2018) and reproduces the 2018 paper's Tables 1–2 (`tests/test_papers.py`).
 
 **Comparison with the UCSB calculators (default inputs).**
 
@@ -88,7 +107,21 @@ The test suite has 48 tests (`pytest`). It verifies the following:
 
 \*The calculators use a 365-day year and coast-only travel time. The acceleration phase changes the travel time by < 10⁻⁵.
 
-The classical columns agree to machine precision. The relativistic calculator interpolates lookup tables tabulated to about 0.6 %, which explains the 0.3–0.6 % differences in speed. Its limiting-speed relation, $\tfrac{(2-4\beta_0)\sqrt{1-\beta_0^2}}{3(1-\beta_0)^2} - \tfrac13 = \tfrac13 - G(\beta_\infty)$, is algebraically identical to our cubic with $W = 2L_0$ (tested to 10⁻¹²). Its time-to-L₀ expression is not. It equals our integrated time multiplied by $\beta_\text{cl}/\beta_\text{rel}$, which overestimates the time by 12 % at these inputs and by more at higher β₀.
+The classical columns agree to machine precision. The relativistic calculator interpolates lookup tables tabulated to about 0.6 %, which explains the 0.3–0.6 % differences in speed. Its limiting-speed relation, $\tfrac{(2-4\beta_0)\sqrt{1-\beta_0^2}}{3(1-\beta_0)^2} - \tfrac13 = \tfrac13 - G(\beta_\infty)$, is algebraically identical to our cubic with $W = 2L_0$ (tested to 10⁻¹²).
+
+Its time-to-L₀ expression is not. The calculator evaluates Kulkarni et al.'s Eq. 11, but obtains $t_\text{rel} = mc^2/P$ from the classical time to L₀ as $2t_0/\beta$. It uses the relativistic β there instead of the classical $\beta_0$. The result is our integrated time multiplied by $\beta_\text{cl}/\beta_\text{rel}$, which is 12 % too long at these inputs and more at higher β₀. The paper's own Table 1 confirms the integrated value: for its 1 g case it lists $t_0$ = 164 s. Our integration gives 163 s, while the calculator's expression would give 183 s.
+
+**Comparison with Kulkarni, Lubin & Zhang (2018), Tables 1–2.** Their inputs are 100 GW, a 10 km square array, 1064 nm, ρ = 1.4 g/cm³ and an optimal square sail. Representative rows:
+
+| Sail, payload | t₀: paper / ours | β at L₀: paper / ours | β_max: paper / ours |
+|---|---|---|---|
+| 1 µm, 1 g | 164 s / 163 s | 0.15 / 0.153 | 0.21 / 0.207 |
+| 1 µm, 10 g | 901 s / 896 s | 0.091 / 0.0906 | 0.13 / 0.125 |
+| 1 µm, 1 kg | 2.79×10⁴ s / 2.77×10⁴ s | 0.030 / 0.0299 | 0.042 / 0.0420 |
+| 0.1 µm, 1 g | 306 s / 304 s | 0.25 / 0.250 | 0.33 / 0.328 |
+| 0.01 µm, 1 g | 587 s / 584 s | 0.39 / 0.386 | 0.48 / 0.482 |
+
+All 13 rows agree closely. Our times are 0.3–0.8 % shorter, which matches the paper having used rounded sail sizes: with D = 0.85 m in place of 0.845 m, our 1 g value becomes 164 s. Sail sizes and L₀ agree within 3.5 %, β at L₀ within 2.5 %, and β_max within 4.5 %. The largest differences are in the last printed digit, for example β_max for 10 g (0.125 vs 0.13). As a minor note, Lubin (2016) Eq. 6 prints $L_0 = dD/(2\lambda\xi)$; Eq. 13 of the same paper and both calculators use $dD/(2\lambda\alpha)$, which we follow.
 
 ## 3. Results
 
@@ -183,14 +216,14 @@ The model is deliberately idealized:
 
 ```bash
 pip install -r requirements.txt
-python -m pytest                    # 48 validation tests (needs Node.js for the JS cross-check)
+python -m pytest                    # 78 validation tests (needs Node.js for the JS cross-check)
 python scripts/make_figures.py      # regenerates figures/ and figures/results.json
 python -m http.server -d web 8000   # open http://localhost:8000
 ```
 
 ## References
 
-1. P. Lubin, “A Roadmap to Interstellar Flight,” *J. British Interplanetary Society* **69**, 40–72 (2016); arXiv:1604.01356.
-2. N. Kulkarni, P. Lubin, Q. Zhang, “Relativistic Spacecraft Propelled by Directed Energy,” *Astronomical Journal* **155**, 155 (2018); arXiv:1710.10732.
+1. P. Lubin, “A Roadmap to Interstellar Flight,” *J. British Interplanetary Society* **69**, 40–72 (2016); arXiv:1604.01356 (equation numbers refer to arXiv v8).
+2. N. Kulkarni, P. Lubin, Q. Zhang, “Relativistic Spacecraft Propelled by Directed Energy,” *The Astronomical Journal* (2018), doi:10.3847/1538-3881/aaafd2; arXiv:1710.10732 (equation and table numbers refer to arXiv v1).
 3. UCSB Experimental Cosmology Group, *Laser Propulsion Classical 1D* and *Relativistic Laser Propulsion 1D* standalone calculators, deepspace.ucsb.edu (2023).
 4. P. Virtanen et al., “SciPy 1.0: fundamental algorithms for scientific computing in Python,” *Nature Methods* **17**, 261–272 (2020).
