@@ -153,6 +153,7 @@ traj = simulate(p, RELATIVISTIC)                            # solve_ivp trajecto
 **Author:** Rainn Reinmiller, University of California, Santa Barbara (UCSB)
 
 * **Project:** design, physics modelling, analysis, simulation and report by Rainn Reinmiller.
+* **Technical Advisor:** Jacob Melendez, Stanford University.
 * **Prepared for:** Prof. Philip Lubin, UCSB Experimental Cosmology Group.
 * **Physics model:** based on P. Lubin, *A Roadmap to Interstellar Flight* (2016); N. Kulkarni, P. Lubin & Q. Zhang, *Relativistic Spacecraft Propelled by Directed Energy* (2018); and the UCSB Laser Propulsion calculators.
 * **Tools:** Python (NumPy, SciPy, Matplotlib), JavaScript, GitHub Pages. Code written with the help of an AI coding assistant (Claude Code).
