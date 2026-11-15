@@ -5,6 +5,8 @@ subtitle: "An idealized 1-D simulation, classical and relativistic, with sensiti
 
 **Author:** Rainn Reinmiller, University of California, Santa Barbara
 
+**Technical Advisor:** Jacob Melendez, Stanford University
+
 **Prepared for:** Prof. Philip Lubin, UCSB Experimental Cosmology Group
 
 **Code, tests and interactive simulation:** <https://github.com/rainnreinmiller/lightsail-sim> · live demo: <https://rainnreinmiller.github.io/lightsail-sim/>
@@ -254,7 +256,7 @@ python scripts/stream_server.py     # SIMULATED tracking stream for the Live dat
 
 ## Credits
 
-Rainn Reinmiller (University of California, Santa Barbara) designed the project and carried out the modelling, analysis, simulation and this report. It was prepared for Prof. Philip Lubin, UCSB Experimental Cosmology Group. The physics follows Lubin (2016), Kulkarni, Lubin & Zhang (2018) and the UCSB Laser Propulsion calculators. The code was written in Python (NumPy, SciPy, Matplotlib) and JavaScript with the help of an AI coding assistant (Claude Code); every result is checked by the test suite described in §2.
+Rainn Reinmiller (University of California, Santa Barbara) designed the project and carried out the modelling, analysis, simulation and this report. Jacob Melendez (Stanford University) served as technical advisor. It was prepared for Prof. Philip Lubin, UCSB Experimental Cosmology Group. The physics follows Lubin (2016), Kulkarni, Lubin & Zhang (2018) and the UCSB Laser Propulsion calculators. The code was written in Python (NumPy, SciPy, Matplotlib) and JavaScript with the help of an AI coding assistant (Claude Code); every result is checked by the test suite described in §2.
 
 ## References
 
