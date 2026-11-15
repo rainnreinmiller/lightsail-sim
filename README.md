@@ -148,6 +148,15 @@ print(mission_summary(p, RELATIVISTIC))                     # closed form + quad
 traj = simulate(p, RELATIVISTIC)                            # solve_ivp trajectory
 ```
 
+## Credits
+
+**Author:** Rainn Reinmiller, University of California, Santa Barbara (UCSB)
+
+* **Project:** design, physics modelling, analysis, simulation and report by Rainn Reinmiller.
+* **Prepared for:** Prof. Philip Lubin, UCSB Experimental Cosmology Group.
+* **Physics model:** based on P. Lubin, *A Roadmap to Interstellar Flight* (2016); N. Kulkarni, P. Lubin & Q. Zhang, *Relativistic Spacecraft Propelled by Directed Energy* (2018); and the UCSB Laser Propulsion calculators.
+* **Tools:** Python (NumPy, SciPy, Matplotlib), JavaScript, GitHub Pages. Code written with the help of an AI coding assistant (Claude Code).
+
 ## Deployment
 
 Pushing to `main` runs the test suite and deploys the simulation, figures and report to GitHub Pages. Enable Pages once under **Settings → Pages → Source: GitHub Actions**.
