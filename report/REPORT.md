@@ -3,6 +3,8 @@ title: "Laser-Propelled Lightsails: How Sail Properties Set Acceleration, Speed 
 subtitle: "An idealized 1-D simulation, classical and relativistic, with sensitivity and uncertainty analysis"
 ---
 
+**Author:** Rainn Reinmiller, University of California, Santa Barbara
+
 **Prepared for:** Prof. Philip Lubin, UCSB Experimental Cosmology Group
 
 **Code, tests and interactive simulation:** <https://github.com/rainnreinmiller/lightsail-sim> · live demo: <https://rainnreinmiller.github.io/lightsail-sim/>
@@ -249,6 +251,10 @@ python scripts/make_figures.py      # regenerates figures/ and figures/results.j
 python -m http.server -d web 8000   # open http://localhost:8000
 python scripts/stream_server.py     # SIMULATED tracking stream for the Live data tab (SSE, port 8001)
 ```
+
+## Credits
+
+Rainn Reinmiller (University of California, Santa Barbara) designed the project and carried out the modelling, analysis, simulation and this report. It was prepared for Prof. Philip Lubin, UCSB Experimental Cosmology Group. The physics follows Lubin (2016), Kulkarni, Lubin & Zhang (2018) and the UCSB Laser Propulsion calculators. The code was written in Python (NumPy, SciPy, Matplotlib) and JavaScript with the help of an AI coding assistant (Claude Code); every result is checked by the test suite described in §2.
 
 ## References
 
